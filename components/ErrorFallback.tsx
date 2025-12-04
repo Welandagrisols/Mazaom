@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Fonts } from "@/constants/theme";
+import { Spacing, BorderRadius, Fonts, Colors } from "@/constants/theme";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -58,12 +58,16 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       ) : null}
 
       <View style={styles.content}>
-        <ThemedText type="h1" style={styles.title}>
-          Something went wrong
+        <View style={[styles.iconContainer, { backgroundColor: Colors.accent.error + "20" }]}>
+          <Feather name="alert-triangle" size={48} color={Colors.accent.error} />
+        </View>
+
+        <ThemedText type="h2" style={styles.title}>
+          Oops! Something went wrong
         </ThemedText>
 
         <ThemedText type="body" style={styles.message}>
-          Please reload the app to continue.
+          AgroVet POS encountered an unexpected error. Please restart the app to continue.
         </ThemedText>
 
         <Pressable
@@ -71,17 +75,18 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           style={({ pressed }) => [
             styles.button,
             {
-              backgroundColor: theme.link,
+              backgroundColor: Colors.primary.main,
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
           ]}
         >
+          <Feather name="refresh-cw" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
           <ThemedText
             type="body"
-            style={[styles.buttonText, { color: theme.buttonText }]}
+            style={[styles.buttonText, { color: "#FFFFFF" }]}
           >
-            Try Again
+            Restart AgroVet POS
           </ThemedText>
         </Pressable>
       </View>
@@ -159,14 +164,20 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 600,
   },
+  iconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+  },
   title: {
     textAlign: "center",
-    lineHeight: 40,
   },
   message: {
     textAlign: "center",
     opacity: 0.7,
-    lineHeight: 24,
   },
   topButton: {
     position: "absolute",
@@ -181,18 +192,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   button: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing["2xl"],
     minWidth: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginTop: Spacing.md,
   },
   buttonText: {
     fontWeight: "600",
