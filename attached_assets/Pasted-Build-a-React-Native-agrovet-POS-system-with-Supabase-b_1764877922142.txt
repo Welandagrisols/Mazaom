@@ -1,0 +1,565 @@
+Build a React Native agrovet POS system with Supabase backend that works on mobile, tablet, and desktop. The system should manage an agrovet business selling feeds, fertilizers (liquid/solid), pesticides, herbicides, acaricides, livestock products, veterinary medicines, seeds, and poultry supplies.
+
+CORE REQUIREMENTS:
+
+1. AUTHENTICATION & USER MANAGEMENT
+- Supabase authentication with role-based access (admin, cashier, manager)
+- Multi-user support with activity logging
+- Secure session management
+
+2. PRODUCT & INVENTORY MANAGEMENT
+- Product categories: Feeds, Fertilizers (Liquid/Solid), Pesticides, Herbicides, Acaricides, Veterinary Medicines, Seeds, Poultry Supplies, Livestock Products
+- Multi-unit tracking (kg, liters, bags, packets, pieces)
+- Batch number and expiry date tracking (critical for agrovets)
+- Barcode/QR code generation and scanning
+- Low stock alerts and expiry notifications
+- Wholesale and retail pricing per product
+- Supplier management with contact details
+- Product images upload and display
+
+3. AI-POWERED RECEIPT SCANNING WITH SMART OCR (CRITICAL FEATURE)
+
+HYBRID OCR APPROACH (Cost-Optimized):
+- Primary: Use Tesseract OCR (100% free, unlimited usage, offline capability)
+- Fallback: Google Cloud Vision API (only when Tesseract confidence is below 75%)
+- This saves money while maintaining high accuracy
+
+IMPLEMENTATION:
+- Camera integration to capture receipt/invoice photos using Expo Camera
+- File upload support for PDF receipts from CamScanner or other sources using Expo Document Picker
+- Image preprocessing before OCR (grayscale conversion, contrast enhancement, noise reduction)
+- Primary OCR with Tesseract.js or react-native-tesseract-ocr
+- Confidence scoring for extracted text
+- Automatic fallback to Google Cloud Vision API if confidence < 75%
+- Admin setting to enable/disable Google Vision API fallback
+
+EXTRACT FROM RECEIPTS/INVOICES:
+- Product names and descriptions
+- Quantities purchased
+- Unit prices and total amounts
+- Batch numbers (if present)
+- Expiry dates (if present)
+- Supplier information
+- Invoice/receipt date and number
+- Tax amounts and totals
+
+AI PARSING & MATCHING:
+- Intelligent text parsing to structure extracted data
+- Fuzzy matching algorithm to match extracted product names to existing products in database
+- Suggest new product creation if no match found
+- Smart detection of units (kg, liters, bags, etc.) from text
+- Date parsing for expiry dates in multiple formats
+
+MANUAL REVIEW INTERFACE:
+- Display original receipt image side-by-side with extracted data
+- Edit extracted information before confirming
+- Match/link extracted products to database products
+- Add new products directly from this interface
+- Bulk confirm or edit individual items
+- Mark extraction confidence level (high/medium/low) with color coding
+
+INVENTORY UPDATE:
+- Automatically update stock levels after confirmation
+- Create batch records with expiry dates
+- Record supplier purchase transaction
+- Update product costs and pricing if needed
+- Generate stock movement records
+
+RECEIPT STORAGE & HISTORY:
+- Store original receipt images in Supabase Storage
+- Organize by supplier and date
+- Receipt history with searchable metadata
+- View past scanned receipts and re-process if needed
+- Link receipts to stock movements and purchase records
+
+OCR SETTINGS & CONFIGURATION:
+- Toggle between Tesseract-only mode and Hybrid mode
+- Set confidence threshold for Google Vision fallback (default 75%)
+- OCR language selection (English, Swahili, etc.)
+- Image quality settings for camera capture
+- Admin dashboard showing OCR usage statistics and accuracy rates
+
+4. POINT OF SALE
+- Fast product search with autocomplete
+- Barcode scanner integration (camera-based)
+- Multi-item cart with quantity adjustment
+- Apply discounts (percentage or fixed amount)
+- Customer selection (walk-in or registered customer)
+- Payment methods: Cash, M-Pesa, Airtel Money, Bank Transfer, Credit
+- Split payments (combine multiple payment methods)
+- Generate printable/shareable receipts with all transaction details
+- Email/SMS receipt option
+- Daily sales summary and shift reports
+- Quick sale mode for fast checkout
+- Hold/retrieve transactions
+
+5. SALES & TRANSACTIONS
+- Complete transaction history
+- Advanced filtering: date range, customer, payment method, product, cashier
+- Transaction details view with product breakdown
+- Return/refund processing with reason tracking
+- Credit sales tracking and payment collection
+- Transaction voiding with authorization
+- Sales performance by time of day/day of week
+
+6. CUSTOMER MANAGEMENT
+- Customer database with contact information (name, phone, email, location)
+- Customer categories (retail, wholesale, VIP)
+- Credit account management with credit limits
+- Purchase history per customer
+- Outstanding balance tracking and aging
+- Customer statements generation (PDF/Email)
+- Payment reminders via SMS
+- Customer loyalty points system (optional)
+- Top customers report
+
+7. SUPPLIER MANAGEMENT
+- Supplier database with full contact details
+- Purchase history per supplier
+- Outstanding payables tracking
+- Supplier performance metrics (delivery time, quality)
+- Preferred supplier flagging
+- Supplier statements and payment tracking
+
+8. REPORTING & ANALYTICS
+SALES REPORTS:
+- Daily/weekly/monthly/yearly sales reports
+- Sales by product, category, supplier
+- Sales by payment method
+- Sales by cashier/employee
+- Hourly sales patterns
+- Compare periods (this month vs last month)
+
+INVENTORY REPORTS:
+- Current stock levels by product/category
+- Inventory valuation (total stock value)
+- Stock movement history
+- Reorder level alerts
+- Dead stock identification
+
+PROFITABILITY:
+- Profit margin analysis per product/category
+- Gross profit reports
+- Best performing products
+- Least profitable products
+
+EXPIRY MANAGEMENT:
+- Products expiring in 30/60/90 days
+- Expired products report
+- Batch expiry tracking
+
+FINANCIAL REPORTS:
+- Cash flow summary
+- Accounts receivable aging
+- Accounts payable summary
+- Tax reports (VAT/Sales tax ready)
+- Expense tracking and reporting
+
+EXPORT OPTIONS:
+- Export all reports to PDF
+- Export to Excel/CSV
+- Share via email or WhatsApp
+- Print reports
+
+9. MOBILE & DESKTOP RESPONSIVE
+- Optimized for mobile phones (primary cashier interface)
+- Tablet-friendly for inventory management
+- Desktop/laptop view for admin and detailed reporting
+- Adaptive UI that adjusts to screen size
+- Touch-optimized buttons (minimum 44x44 points)
+- Offline capability with local data caching using AsyncStorage
+- Queue offline transactions and sync when online
+- Auto-sync when connection restored
+- Conflict resolution for concurrent updates
+- Offline indicator in UI
+
+10. M-PESA & MOBILE MONEY INTEGRATION
+- Integrate M-Pesa STK Push (Lipa Na M-Pesa Online) for payments
+- Airtel Money integration (if available)
+- Payment verification and reconciliation
+- Transaction history with M-Pesa reference numbers
+- Automatic matching of M-Pesa payments to sales
+- Manual M-Pesa payment recording
+- M-Pesa float management
+- Payment confirmation via SMS/notification
+- Handle failed transactions gracefully
+
+11. SUPABASE BACKEND STRUCTURE
+
+DATABASE TABLES:
+- users (id, email, full_name, role, phone, active, created_at)
+- products (id, name, description, category_id, sku, barcode, unit, reorder_level, image_url, active, created_at, updated_at)
+- product_pricing (id, product_id, wholesale_price, retail_price, cost_price, effective_from)
+- categories (id, name, description, parent_category_id, icon)
+- inventory_batches (id, product_id, batch_number, quantity, expiry_date, supplier_id, purchase_date, cost_per_unit, location)
+- suppliers (id, name, contact_person, phone, email, address, payment_terms, active)
+- customers (id, name, phone, email, address, customer_type, credit_limit, current_balance, loyalty_points)
+- transactions (id, transaction_number, customer_id, user_id, transaction_date, subtotal, discount, tax, total, payment_status, notes)
+- transaction_items (id, transaction_id, product_id, batch_id, quantity, unit_price, discount, total)
+- payments (id, transaction_id, payment_method, amount, reference_number, payment_date, verified)
+- receipts_scanned (id, supplier_id, receipt_date, image_url, ocr_method, confidence_score, status, extracted_data_json, user_id, created_at)
+- stock_movements (id, product_id, batch_id, movement_type, quantity, reference_type, reference_id, user_id, notes, created_at)
+- expenses (id, expense_category, amount, description, payment_method, date, user_id)
+- credit_transactions (id, customer_id, transaction_id, amount, transaction_type, balance_after, created_at)
+- notifications (id, user_id, title, message, type, read, created_at)
+- audit_logs (id, user_id, action, table_name, record_id, changes_json, timestamp)
+- settings (id, key, value, description)
+
+SUPABASE STORAGE BUCKETS:
+- receipt-images (for scanned receipts)
+- product-images (for product photos)
+- reports (for generated PDF reports)
+
+ROW LEVEL SECURITY (RLS):
+- Implement RLS policies for all tables
+- Users can only see data for their organization
+- Role-based access (admin sees everything, cashier sees limited data)
+- Audit logs are read-only except for system
+
+REALTIME SUBSCRIPTIONS:
+- Real-time inventory updates across devices
+- Live sales notifications for managers
+- Low stock alerts
+- New customer orders
+
+12. UI/UX REQUIREMENTS
+DESIGN SYSTEM:
+- Clean, modern Material Design using React Native Paper
+- Color scheme: Primary: Green (#2E7D32 - agriculture), Secondary: Blue (#1976D2)
+- Accent: Orange (#F57C00) for alerts/warnings
+- Consistent spacing and typography
+- Professional and trustworthy aesthetic
+
+MOBILE POS INTERFACE:
+- Large touch-friendly buttons (minimum 48x48 dp)
+- Quick access shortcuts on home screen
+- Product search with auto-suggest
+- Numeric keypad for quantity/price entry
+- Swipe gestures for common actions
+- Shopping cart always visible
+- One-tap payment completion
+
+NAVIGATION:
+- Bottom tab navigation for main sections (POS, Inventory, Reports, More)
+- Drawer navigation for secondary features
+- Breadcrumb navigation for deep screens
+- Back button consistency
+
+FEEDBACK & STATES:
+- Loading indicators for all async operations
+- Success/error toasts with appropriate messaging
+- Confirmation dialogs for destructive actions
+- Empty states with helpful guidance
+- Error handling with user-friendly messages and retry options
+- Progress indicators for long operations (like OCR processing)
+
+ACCESSIBILITY:
+- High contrast mode
+- Font size adjustments
+- Screen reader support
+- Voice input for search
+
+ADDITIONAL UX:
+- Dark mode support
+- Tutorial/onboarding for first-time users
+- Contextual help tooltips
+- Keyboard shortcuts for desktop
+- Gesture support (swipe to delete, pull to refresh)
+
+13. TECHNICAL REQUIREMENTS
+
+CORE TECHNOLOGIES:
+- React Native with Expo (managed workflow)
+- Supabase client (@supabase/supabase-js)
+- React Navigation v6 for routing
+- React Native Paper for UI components
+
+CAMERA & SCANNING:
+- Expo Camera for receipt/barcode scanning
+- Expo Document Picker for PDF uploads
+- Expo Image Picker for product images
+- React Native Vision Camera (alternative if needed)
+
+OCR & IMAGE PROCESSING:
+- Tesseract.js for primary OCR (free, offline)
+- Google Cloud Vision API integration (optional fallback)
+- Sharp or react-native-image-processing for image preprocessing
+- Implement confidence scoring algorithm
+
+CHARTS & VISUALIZATION:
+- React Native Chart Kit for analytics
+- Victory Native for advanced charts
+- Recharts for web dashboard (if building web admin)
+
+DATA & STORAGE:
+- AsyncStorage for offline data caching
+- Supabase Storage for files
+- MMKV for fast key-value storage (optional performance boost)
+
+NETWORKING:
+- Axios for API calls
+- @react-native-community/netinfo for connectivity detection
+- Implement request queue for offline mode
+
+UTILITIES:
+- date-fns for date manipulation
+- lodash for data operations
+- react-hook-form for form management
+- yup for validation schemas
+- numeral.js for number formatting
+
+PRINTING:
+- React Native Print for receipt printing
+- Expo Print API
+- Support for Bluetooth/USB thermal printers
+
+NOTIFICATIONS:
+- Expo Notifications for push notifications
+- Local notifications for reminders
+- SMS integration via Africa's Talking API (for Kenyan market)
+
+BARCODE:
+- Expo Barcode Scanner
+- React Native Vision Camera with barcode plugin
+- Generate barcodes: react-native-barcode-builder
+
+14. SECURITY & COMPLIANCE
+- Secure API keys using expo-constants and .env files
+- Never commit sensitive keys to git (.gitignore properly configured)
+- Implement JWT token refresh logic
+- Data encryption for sensitive information (customer data, financial records)
+- HTTPS only for all communications
+- Input validation and sanitization on both client and server
+- SQL injection prevention (Supabase handles this)
+- XSS protection
+- Rate limiting on API calls
+- Audit trail for all critical operations (sales, inventory changes, user actions)
+- Automatic session timeout after inactivity
+- Password strength requirements
+- Two-factor authentication (optional, for admin)
+- Data backup strategy (daily automated Supabase backups)
+- GDPR/data privacy compliance features (data export, deletion)
+- eTIMS/TIMS integration ready (Kenya Revenue Authority tax compliance)
+- Receipt generation with tax invoice format
+
+15. ADDITIONAL FEATURES
+
+ADVANCED INVENTORY:
+- Stock transfer between locations/branches
+- Stock adjustment with approval workflow
+- Minimum/maximum stock levels
+- Automatic reorder suggestions
+- Product variants (sizes, colors if needed)
+- Product bundling (sell multiple products as one)
+- Serial number tracking for high-value items
+
+EMPLOYEE MANAGEMENT:
+- Employee records and permissions
+- Clock in/clock out
+- Shift management
+- Employee performance tracking (sales per employee)
+- Commission calculation
+
+ADVANCED SALES:
+- Quotations/proforma invoices
+- Sales orders (order before delivery)
+- Layaway/installment sales
+- Gift cards and vouchers
+- Bulk pricing tiers
+- Seasonal promotions and discounts
+
+MULTI-STORE SUPPORT:
+- Manage multiple agrovet branches
+- Centralized inventory view
+- Inter-branch transfers
+- Consolidated reporting across stores
+- Store-specific permissions
+
+COMMUNICATION:
+- SMS notifications for:
+  * Low stock alerts to admin
+  * Expiry reminders
+  * Payment reminders to customers
+  * Promotional messages
+- WhatsApp integration for receipts and statements
+- Email functionality
+
+INTEGRATIONS:
+- Kenya Revenue Authority eTIMS/TIMS API (tax compliance)
+- M-Pesa Daraja API
+- Airtel Money API
+- Africa's Talking SMS API
+- QuickBooks/Xero accounting export
+- Bulk SMS gateway
+
+BUSINESS INTELLIGENCE:
+- Dashboard with key metrics (daily sales, stock value, top products)
+- Predictive analytics (forecast demand based on historical data)
+- Seasonality tracking for agricultural products
+- Customer buying patterns
+- Supplier performance scores
+
+16. DEPLOYMENT & DEVOPS
+
+ENVIRONMENT SETUP:
+- Provide comprehensive .env.example file with all required variables:
+  * SUPABASE_URL
+  * SUPABASE_ANON_KEY
+  * GOOGLE_CLOUD_VISION_API_KEY (optional)
+  * MPESA_CONSUMER_KEY
+  * MPESA_CONSUMER_SECRET
+  * SMS_API_KEY
+  * ENCRYPTION_SECRET
+
+SUPABASE SETUP:
+- SQL migration scripts for database schema
+- RLS policies setup script
+- Storage bucket creation script
+- Seed data for testing (sample products, categories)
+- Database indexes for performance
+- Automated backup configuration
+
+TESTING:
+- Unit tests for critical business logic
+- Integration tests for Supabase operations
+- E2E tests for main user flows
+- Test coverage reports
+- Mock data generators
+
+DOCUMENTATION:
+- Comprehensive README.md with:
+  * Project overview
+  * Setup instructions (step-by-step)
+  * Environment configuration
+  * Running the app (iOS, Android, Web)
+  * Building for production
+  * Troubleshooting guide
+- API documentation
+- Database schema documentation with ERD
+- User manual (PDF) for agrovet staff
+- Admin guide
+- Development guidelines (code style, contribution)
+
+BUILD & RELEASE:
+- EAS Build configuration for production builds
+- App signing setup for Play Store and App Store
+- Version management strategy
+- Release notes template
+- Over-the-air (OTA) updates configuration
+
+MONITORING:
+- Error tracking with Sentry or similar
+- Analytics integration (Google Analytics, Mixpanel)
+- Performance monitoring
+- User feedback mechanism in-app
+
+17. PERFORMANCE OPTIMIZATION
+- Image optimization (compress before upload)
+- Lazy loading for lists and images
+- Pagination for large datasets
+- Debouncing for search inputs
+- Memoization for expensive calculations
+- Optimize Supabase queries (use indexes, select only needed columns)
+- Bundle size optimization
+- Code splitting where applicable
+- Cache API responses appropriately
+- Background sync for offline data
+
+18. PRIORITY IMPLEMENTATION ORDER
+
+PHASE 1 (MVP - Weeks 1-2):
+1. Supabase setup (database schema, authentication)
+2. User authentication and role management
+3. Basic product management (CRUD operations)
+4. Simple inventory tracking
+5. Basic POS interface (add products to cart, checkout)
+6. Cash payment method
+7. Receipt generation
+
+PHASE 2 (Core Features - Weeks 3-4):
+1. Receipt scanning with Tesseract OCR
+2. Image preprocessing and OCR confidence scoring
+3. Manual review interface for scanned receipts
+4. Inventory update from scanned receipts
+5. Barcode scanning for products
+6. Customer management
+7. Basic reporting (sales reports, inventory reports)
+
+PHASE 3 (Enhanced Features - Weeks 5-6):
+1. Google Vision API fallback integration
+2. Advanced inventory (batch tracking, expiry dates)
+3. Supplier management
+4. M-Pesa integration
+5. Credit sales management
+6. Advanced reports and analytics
+7. Low stock and expiry alerts
+
+PHASE 4 (Polish & Production - Weeks 7-8):
+1. Offline mode with sync
+2. Multi-device support
+3. SMS notifications
+4. Employee management
+5. Performance optimization
+6. Security hardening
+7. User testing and bug fixes
+8. Documentation completion
+9. Deployment preparation
+
+PHASE 5 (Advanced - Future):
+1. Multi-store support
+2. eTIMS integration
+3. Advanced analytics and BI
+4. Mobile money integrations (Airtel Money)
+5. WhatsApp integration
+6. Accounting software export
+
+19. CODE QUALITY REQUIREMENTS
+- Use TypeScript for type safety
+- Follow React Native best practices
+- Implement proper error boundaries
+- Use custom hooks for reusable logic
+- Modular component structure
+- Consistent naming conventions
+- ESLint and Prettier configuration
+- Git commit message conventions
+- Code comments for complex logic
+- PropTypes or TypeScript interfaces for all components
+
+20. USER ROLES & PERMISSIONS
+
+ADMIN:
+- Full access to all features
+- User management
+- System settings
+- Financial reports
+- Data export/backup
+- Delete transactions (with audit log)
+
+MANAGER:
+- View all reports
+- Manage inventory
+- Manage customers and suppliers
+- Process returns/refunds
+- View financial data
+- Cannot delete transactions
+
+CASHIER:
+- Process sales
+- View product information
+- Add customers
+- Basic reports (own sales only)
+- Cannot access financial settings
+- Cannot change prices
+
+INVENTORY CLERK:
+- Manage inventory
+- Scan receipts and update stock
+- Manage products and batches
+- View inventory reports
+- Cannot access sales or financial data
+
+Build this as a production-ready, scalable application with proper error handling, loading states, and a professional user interface suitable for a real agrovet business in Kenya. The system should be intuitive enough that staff with basic smartphone literacy can use it effectively.
+
+Include comprehensive inline comments explaining complex logic, especially for the OCR processing, inventory calculations, and business logic. Provide clear setup documentation that a developer with React Native experience can follow to get the system running.
+
+The receipt scanning feature with hybrid OCR (Tesseract + Google Vision fallback) is a critical differentiator - make this feature robust, accurate, and user-friendly as it will save hours of manual data entry for the agrovet business.
