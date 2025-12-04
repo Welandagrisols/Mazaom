@@ -7,6 +7,7 @@ import TransactionsScreen from "@/screens/TransactionsScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
 import AddCustomerScreen from "@/screens/AddCustomerScreen";
 import AddSupplierScreen from "@/screens/AddSupplierScreen";
+import ReceiptsScreen from "@/screens/ReceiptsScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
 
@@ -18,6 +19,7 @@ export type MoreStackParamList = {
   Settings: undefined;
   AddCustomer: undefined;
   AddSupplier: undefined;
+  Receipts: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -80,6 +82,13 @@ export default function MoreStackNavigator() {
         options={{
           headerTitle: "Add Supplier",
           presentation: "modal",
+        }}
+      />
+      <Stack.Screen
+        name="Receipts"
+        component={ReceiptsScreen}
+        options={{
+          headerTitle: "Upload Receipts",
         }}
       />
     </Stack.Navigator>

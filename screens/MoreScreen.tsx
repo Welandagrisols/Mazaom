@@ -78,6 +78,13 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
           badge={transactions.length}
           onPress={() => navigation.navigate("Transactions")}
         />
+        <MenuListItem
+          title="Upload Receipts"
+          subtitle="Scan or upload PDF receipts"
+          icon="upload-cloud"
+          iconColor={Colors.primary.main}
+          onPress={() => navigation.navigate("Receipts")}
+        />
 
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           System
