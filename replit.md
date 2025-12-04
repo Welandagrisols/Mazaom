@@ -42,6 +42,7 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 - **Customer Management**: Customer database with contact information
 - **Supplier Management**: Supplier records for procurement
 - **Reporting**: Sales reports, inventory reports with analytics
+- **Receipt Management**: Upload receipts via camera capture, gallery, or batch PDF upload
 - **Categories**: Feeds, Fertilizers, Pesticides, Herbicides, Veterinary, Seeds, Poultry, Livestock
 
 ## Development
@@ -65,6 +66,7 @@ This starts the Expo development server on port 5000 with web support.
 - **Host**: Configured to accept connections from Replit proxy
 
 ## Recent Changes
+- December 2024: Added receipt management with camera capture, gallery selection, and batch PDF upload
 - December 2024: Initial import and Replit environment configuration
 
 ## User Preferences
