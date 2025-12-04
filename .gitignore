@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.pnpm-store/
 
 # Expo
 .expo/
@@ -32,6 +33,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +43,19 @@ app-example
 # generated native folders
 /ios
 /android
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+
+# Testing
+coverage/

@@ -1,51 +1,12 @@
-entrypoint = "README.md"
-modules = ["nodejs-22"]
+modules = ["nodejs-20"]
+[agent]
+expertMode = true
 
 [nix]
-channel = "stable-24_05"
-
-[[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 8082
-externalPort = 3000
+channel = "stable-25_05"
 
 [workflows]
 runButton = "Project"
-
-[[workflows.workflow]]
-name = "EAS Init"
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas init"
-
-[[workflows.workflow]]
-name = "EAS Update"
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas update --auto"
-
-[[workflows.workflow]]
-name = "EAS Publish Preview iOS"
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas build --platform ios --profile preview"
-
-[[workflows.workflow]]
-name = "EAS Publish Preview Android"
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas build --platform android --profile preview"
 
 [[workflows.workflow]]
 name = "Project"
@@ -54,33 +15,29 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
+args = "AgroVet POS"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "AgroVet POS"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 8081
-ensurePreviewReachable = "/status"
+waitForPort = 5000
 
-[agent]
-stack = "EXPO"
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 44031
+externalPort = 3000
 
 [deployment]
 deploymentTarget = "static"
-publicDir = "static-build"
-build = ["node", "scripts/build.js"]
-
-# Expo manifest headers
-[[deployment.responseHeaders]]
-path = "/*"
-name = "expo-protocol-version"
-value = "1"
-
-[[deployment.responseHeaders]]
-path = "/*"
-name = "expo-sfv-version"
-value = "0"
+build = ["npx", "expo", "export", "--platform", "web"]
+publicDir = "dist"
