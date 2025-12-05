@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { ThemedText } from "@/components/ThemedText";
@@ -60,7 +60,11 @@ export function ProductCard({ product, stock, onPress, onAddToCart, compact = fa
         style={[styles.compactCard, { backgroundColor: theme.surface }, animatedStyle]}
       >
         <View style={[styles.compactIcon, { backgroundColor: Colors.primary.light + "20" }]}>
-          <Feather name={category?.icon as any || "box"} size={24} color={Colors.primary.main} />
+          {product.image ? (
+            <Image source={{ uri: product.image }} style={styles.compactImage} />
+          ) : (
+            <Feather name={category?.icon as any || "box"} size={24} color={Colors.primary.main} />
+          )}
         </View>
         <ThemedText type="small" numberOfLines={2} style={styles.compactName}>
           {product.name}
@@ -80,8 +84,12 @@ export function ProductCard({ product, stock, onPress, onAddToCart, compact = fa
       style={[styles.card, { backgroundColor: theme.surface }, animatedStyle]}
     >
       <View style={styles.cardContent}>
-        <View style={[styles.iconContainer, { backgroundColor: Colors.primary.light + "20" }]}>
-          <Feather name={category?.icon as any || "box"} size={28} color={Colors.primary.main} />
+        <View style={[styles.iconContainer, { backgroundColor: Colors.primary.light + "20", overflow: 'hidden' }]}>
+          {product.image ? (
+            <Image source={{ uri: product.image }} style={styles.productImage} />
+          ) : (
+            <Feather name={category?.icon as any || "box"} size={28} color={Colors.primary.main} />
+          )}
         </View>
         <View style={styles.info}>
           <ThemedText type="body" numberOfLines={1} style={styles.productName}>
@@ -182,5 +190,15 @@ const styles = StyleSheet.create({
   compactName: {
     textAlign: "center",
     marginBottom: Spacing.xs,
+  },
+  productImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  compactImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
 });

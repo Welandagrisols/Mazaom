@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, StyleSheet, FlatList, ScrollView, Pressable } from "react-native";
+import { View, StyleSheet, FlatList, ScrollView, Pressable, TextInput, Modal, Alert } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -33,6 +33,9 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [quantity, setQuantity] = useState("1");
 
   const filteredProducts = useMemo(() => {
     let result = products.filter((p) => p.active);
@@ -61,6 +64,26 @@ export default function POSScreen({ navigation }: POSScreenProps) {
   const handleBarcodePress = useCallback(() => {
     // Barcode scanning would be implemented here
   }, []);
+
+  const handleProductPress = useCallback((product: any) => {
+    setSelectedProduct(product);
+    setQuantity("1");
+    setShowQuantityModal(true);
+  }, []);
+
+  const handleAddToCart = useCallback(() => {
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      Alert.alert("Invalid Quantity", "Please enter a valid quantity");
+      return;
+    }
+    if (selectedProduct) {
+      addToCart(selectedProduct, qty);
+      setShowQuantityModal(false);
+      setSelectedProduct(null);
+      setQuantity("1");
+    }
+  }, [quantity, selectedProduct, addToCart]);
 
   const cartTotal = getCartTotal();
 
@@ -116,7 +139,7 @@ export default function POSScreen({ navigation }: POSScreenProps) {
                       product={product}
                       stock={getProductStock(product.id)}
                       compact
-                      onPress={() => addToCart(product)}
+                      onPress={() => handleProductPress(product)}
                     />
                   ))}
                 </ScrollView>
@@ -138,8 +161,8 @@ export default function POSScreen({ navigation }: POSScreenProps) {
                   <ProductCard
                     product={item}
                     stock={getProductStock(item.id)}
-                    onPress={() => addToCart(item)}
-                    onAddToCart={() => addToCart(item)}
+                    onPress={() => handleProductPress(item)}
+                    onAddToCart={() => handleProductPress(item)}
                   />
                 )}
                 showsVerticalScrollIndicator={false}
@@ -212,6 +235,104 @@ export default function POSScreen({ navigation }: POSScreenProps) {
           </View>
         </View>
       </View>
+
+      <Modal
+        visible={showQuantityModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQuantityModal(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowQuantityModal(false)}
+        >
+          <Pressable 
+            style={[styles.modalContent, { backgroundColor: theme.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <ThemedText type="h4" style={styles.modalTitle}>
+              Add to Cart
+            </ThemedText>
+            
+            {selectedProduct && (
+              <>
+                <ThemedText type="body" style={styles.modalProductName}>
+                  {selectedProduct.name}
+                </ThemedText>
+                <ThemedText type="caption" style={[styles.modalPrice, { color: theme.textSecondary }]}>
+                  {formatCurrency(selectedProduct.retailPrice)} each
+                </ThemedText>
+                
+                <View style={styles.quantityInputContainer}>
+                  <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                    Quantity:
+                  </ThemedText>
+                  <View style={styles.quantityControls}>
+                    <Pressable
+                      onPress={() => {
+                        const qty = Math.max(1, parseInt(quantity || "1", 10) - 1);
+                        setQuantity(qty.toString());
+                      }}
+                      style={[styles.quantityButton, { backgroundColor: theme.backgroundSecondary }]}
+                    >
+                      <Feather name="minus" size={20} color={theme.text} />
+                    </Pressable>
+                    
+                    <TextInput
+                      value={quantity}
+                      onChangeText={setQuantity}
+                      keyboardType="number-pad"
+                      style={[styles.quantityInput, { 
+                        backgroundColor: theme.backgroundSecondary,
+                        color: theme.text,
+                        borderColor: theme.divider
+                      }]}
+                      selectTextOnFocus
+                    />
+                    
+                    <Pressable
+                      onPress={() => {
+                        const qty = parseInt(quantity || "0", 10) + 1;
+                        setQuantity(qty.toString());
+                      }}
+                      style={[styles.quantityButton, { backgroundColor: Colors.primary.main }]}
+                    >
+                      <Feather name="plus" size={20} color="#FFFFFF" />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.modalTotal}>
+                  <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                    Total:
+                  </ThemedText>
+                  <ThemedText type="h3" style={{ color: Colors.primary.main }}>
+                    {formatCurrency(selectedProduct.retailPrice * (parseInt(quantity || "0", 10)))}
+                  </ThemedText>
+                </View>
+              </>
+            )}
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => setShowQuantityModal(false)}
+                style={[styles.modalButton, { backgroundColor: theme.backgroundSecondary }]}
+              >
+                <ThemedText type="body">Cancel</ThemedText>
+              </Pressable>
+              
+              <Pressable
+                onPress={handleAddToCart}
+                style={[styles.modalButton, { backgroundColor: Colors.primary.main, flex: 1 }]}
+              >
+                <ThemedText type="body" style={{ color: "#FFFFFF", fontWeight: "600" }}>
+                  Add to Cart
+                </ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {cart.length > 0 ? (
         <Pressable
@@ -351,5 +472,73 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    maxWidth: 400,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+  },
+  modalTitle: {
+    marginBottom: Spacing.md,
+  },
+  modalProductName: {
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  modalPrice: {
+    marginBottom: Spacing.lg,
+  },
+  quantityInputContainer: {
+    marginBottom: Spacing.lg,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.sm,
+  },
+  quantityButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quantityInput: {
+    width: 80,
+    height: 44,
+    borderRadius: BorderRadius.sm,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+    marginHorizontal: Spacing.sm,
+    borderWidth: 1,
+  },
+  modalTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  modalButton: {
+    flex: 0.5,
+    height: Spacing.buttonHeight,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
