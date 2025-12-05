@@ -5,33 +5,40 @@ export const SAMPLE_PRODUCTS: Product[] = [
   {
     id: generateId(),
     name: "Dairy Meal 70kg",
-    description: "High protein dairy meal for cattle",
+    description: "Complete dairy cattle feed",
     category: "feeds",
-    sku: "FM-001",
-    barcode: "5901234123457",
+    sku: "FD-001",
     unit: "bags",
-    retailPrice: 3500,
-    wholesalePrice: 3200,
-    costPrice: 2800,
-    reorderLevel: 10,
-    active: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: generateId(),
-    name: "Chick Mash 25kg",
-    description: "Starter feed for chicks",
-    category: "poultry",
-    sku: "PM-001",
-    unit: "bags",
-    retailPrice: 2200,
-    wholesalePrice: 2000,
-    costPrice: 1800,
+    retailPrice: 4200,
+    wholesalePrice: 3900,
+    costPrice: 3500,
     reorderLevel: 15,
     active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    isBulkItem: true,
+    packageWeight: 70,
+    pricePerKg: 60,
+    costPerKg: 50,
+  },
+  {
+    id: generateId(),
+    name: "Chick Mash 50kg",
+    description: "Starter feed for chicks",
+    category: "feeds",
+    sku: "FD-002",
+    unit: "bags",
+    retailPrice: 3200,
+    wholesalePrice: 2950,
+    costPrice: 2700,
+    reorderLevel: 20,
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isBulkItem: true,
+    packageWeight: 50,
+    pricePerKg: 64,
+    costPerKg: 54,
   },
   {
     id: generateId(),
@@ -196,11 +203,11 @@ export const SAMPLE_SUPPLIERS: Supplier[] = [
 export const generateSampleBatches = (products: Product[]): InventoryBatch[] => {
   const batches: InventoryBatch[] = [];
   const today = new Date();
-  
+
   products.forEach((product, index) => {
     const expiryDate = new Date(today);
     expiryDate.setMonth(expiryDate.getMonth() + 6 + index);
-    
+
     batches.push({
       id: generateId(),
       productId: product.id,
@@ -211,6 +218,6 @@ export const generateSampleBatches = (products: Product[]): InventoryBatch[] => 
       costPerUnit: product.costPrice,
     });
   });
-  
+
   return batches;
 };

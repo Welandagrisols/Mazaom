@@ -22,7 +22,7 @@ interface AppContextType {
   user: User | null;
   isLoading: boolean;
   loadData: () => Promise<void>;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, fractionalDetails?: { weight: number; totalPrice: number }) => void;
   removeFromCart: (itemId: string) => void;
   updateCartQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -101,13 +101,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadData();
   }, [loadData]);
 
-  const addToCart = useCallback((product: Product, quantity = 1) => {
+  const addToCart = useCallback((product: Product, quantity = 1, fractionalDetails?: { weight: number; totalPrice: number }) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      // For fractional sales, always add as new item (don't combine)
+      if (fractionalDetails) {
+        return [
+          ...prev,
+          {
+            id: generateId(),
+            product,
+            quantity: 1,
+            unitPrice: fractionalDetails.totalPrice,
+            discount: 0,
+            actualWeight: fractionalDetails.weight,
+            isFractionalSale: true,
+          },
+        ];
+      }
+      
+      // For regular items, check if already in cart
+      const existing = prev.find((item) => item.product.id === product.id && !item.isFractionalSale);
       if (existing) {
         // Update quantity for existing item
         return prev.map((item) =>
-          item.product.id === product.id
+          item.product.id === product.id && !item.isFractionalSale
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );

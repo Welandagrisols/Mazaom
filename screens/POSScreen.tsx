@@ -13,6 +13,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { CartItemComponent } from "@/components/CartItem";
 import { CategoryChip } from "@/components/CategoryChip";
 import { EmptyState } from "@/components/EmptyState";
+import { BulkSaleModal } from "@/components/BulkSaleModal";
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
@@ -34,6 +35,7 @@ export default function POSScreen({ navigation }: POSScreenProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [showBulkSaleModal, setShowBulkSaleModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [quantity, setQuantity] = useState("1");
 
@@ -67,8 +69,12 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
   const handleProductPress = useCallback((product: any) => {
     setSelectedProduct(product);
-    setQuantity("1");
-    setShowQuantityModal(true);
+    if (product.isBulkItem) {
+      setShowBulkSaleModal(true);
+    } else {
+      setQuantity("1");
+      setShowQuantityModal(true);
+    }
   }, []);
 
   const handleAddToCart = useCallback(() => {
@@ -84,6 +90,14 @@ export default function POSScreen({ navigation }: POSScreenProps) {
       setQuantity("1");
     }
   }, [quantity, selectedProduct, addToCart]);
+
+  const handleBulkSaleAddToCart = useCallback((weight: number, totalPrice: number) => {
+    if (selectedProduct) {
+      addToCart(selectedProduct, 1, { weight, totalPrice });
+      setShowBulkSaleModal(false);
+      setSelectedProduct(null);
+    }
+  }, [selectedProduct, addToCart]);
 
   const cartTotal = getCartTotal();
 
@@ -336,6 +350,13 @@ export default function POSScreen({ navigation }: POSScreenProps) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <BulkSaleModal
+        visible={showBulkSaleModal}
+        product={selectedProduct}
+        onClose={() => setShowBulkSaleModal(false)}
+        onAddToCart={handleBulkSaleAddToCart}
+      />
 
       {cart.length > 0 ? (
         <Pressable

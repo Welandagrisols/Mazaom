@@ -16,6 +16,11 @@ export interface Product {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  // Bulk sale properties (for items sold by weight from larger packages)
+  isBulkItem?: boolean;
+  packageWeight?: number; // Total weight of full package (e.g., 70kg bag)
+  pricePerKg?: number; // Retail price per kg
+  costPerKg?: number; // Cost price per kg
 }
 
 export interface InventoryBatch {
@@ -59,6 +64,9 @@ export interface CartItem {
   unitPrice: number;
   discount: number;
   batchId?: string;
+  // For bulk items sold by weight
+  actualWeight?: number; // Weight sold (e.g., 2.5 kg from a 70kg bag)
+  isFractionalSale?: boolean; // True if sold by weight
 }
 
 export interface Transaction {
