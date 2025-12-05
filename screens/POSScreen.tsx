@@ -149,7 +149,7 @@ export default function POSScreen({ navigation }: POSScreenProps) {
             <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
               {selectedCategory
                 ? CATEGORIES.find((c) => c.id === selectedCategory)?.name
-                : "Products"}{" "}
+                : "All Products"}{" "}
               ({filteredProducts.length})
             </ThemedText>
 
@@ -157,16 +157,19 @@ export default function POSScreen({ navigation }: POSScreenProps) {
               <FlatList
                 data={filteredProducts}
                 keyExtractor={(item) => item.id}
+                numColumns={2}
                 renderItem={({ item }) => (
                   <ProductCard
                     product={item}
                     stock={getProductStock(item.id)}
                     onPress={() => handleProductPress(item)}
                     onAddToCart={() => handleProductPress(item)}
+                    gridView
                   />
                 )}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.productsList}
+                columnWrapperStyle={styles.productRow}
               />
             ) : (
               <EmptyState
@@ -392,6 +395,10 @@ const styles = StyleSheet.create({
   },
   productsList: {
     paddingBottom: 100,
+  },
+  productRow: {
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
   },
   cartSection: {
     width: 280,

@@ -15,11 +15,12 @@ interface ProductCardProps {
   onPress: () => void;
   onAddToCart?: () => void;
   compact?: boolean;
+  gridView?: boolean;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function ProductCard({ product, stock, onPress, onAddToCart, compact = false }: ProductCardProps) {
+export function ProductCard({ product, stock, onPress, onAddToCart, compact = false, gridView = false }: ProductCardProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
 
@@ -50,6 +51,50 @@ export function ProductCard({ product, stock, onPress, onAddToCart, compact = fa
   };
 
   const badge = getStockBadge();
+
+  if (gridView) {
+    return (
+      <AnimatedPressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.gridCard, { backgroundColor: theme.surface }, animatedStyle]}
+      >
+        <View style={[styles.gridImageContainer, { backgroundColor: Colors.primary.light + "10" }]}>
+          {product.image ? (
+            <Image source={{ uri: product.image }} style={styles.gridImage} />
+          ) : (
+            <Feather name={category?.icon as any || "box"} size={40} color={Colors.primary.main} />
+          )}
+          {!isOutOfStock && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onAddToCart?.();
+              }}
+              style={({ pressed }) => [
+                styles.gridAddButton,
+                { backgroundColor: Colors.primary.main, opacity: pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Feather name="plus" size={16} color="#FFFFFF" />
+            </Pressable>
+          )}
+        </View>
+        <View style={styles.gridInfo}>
+          <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: 2 }}>
+            {stock} {product.unit}
+          </ThemedText>
+          <ThemedText type="small" numberOfLines={2} style={styles.gridProductName}>
+            {product.name}
+          </ThemedText>
+          <ThemedText type="body" style={{ color: Colors.primary.main, fontWeight: "600", marginTop: 4 }}>
+            {formatCurrency(product.retailPrice)}
+          </ThemedText>
+        </View>
+      </AnimatedPressable>
+    );
+  }
 
   if (compact) {
     return (
@@ -200,5 +245,46 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     resizeMode: "cover",
+  },
+  gridCard: {
+    flex: 1,
+    margin: 6,
+    borderRadius: BorderRadius.lg,
+    overflow: "hidden",
+    maxWidth: "48%",
+  },
+  gridImageContainer: {
+    width: "100%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  gridAddButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  gridInfo: {
+    padding: Spacing.md,
+  },
+  gridProductName: {
+    fontWeight: "500",
+    lineHeight: 18,
   },
 });
