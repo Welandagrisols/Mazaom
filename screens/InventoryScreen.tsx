@@ -156,120 +156,128 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
     const isDropdownOpen = openDropdownId === item.id;
 
     return (
-      <View>
-        <Pressable
-          onPress={() => navigation.navigate("ProductDetail", { productId: item.id })}
-        >
-          <View style={[styles.tableRow, { backgroundColor: theme.background }]}>
-            <ThemedText
-              type="caption"
-              style={[styles.cell, styles.skuCell, { color: theme.textSecondary }]}
-              numberOfLines={1}
-            >
-              {item.sku}
-            </ThemedText>
-            <ThemedText type="small" style={[styles.cell, styles.nameCell]} numberOfLines={1}>
-              {item.name}
-            </ThemedText>
-            <ThemedText
-              type="small"
-              style={[styles.cell, styles.categoryCell]}
-              numberOfLines={1}
-            >
-              {category?.name || "N/A"}
-            </ThemedText>
-            <ThemedText type="small" style={[styles.cell, styles.stockCell]}>
-              {stock}
-            </ThemedText>
-            <ThemedText
-              type="small"
-              style={[styles.cell, styles.unitCell, { color: theme.textSecondary }]}
-            >
-              {item.unit}
-            </ThemedText>
-            <View style={[styles.cell, styles.statusCell]}>
-              <View style={[styles.statusBadge, { backgroundColor: status.color + "20" }]}>
-                <ThemedText type="caption" style={{ color: status.color }}>
-                  {status.label}
-                </ThemedText>
-              </View>
-            </View>
-            <ThemedText
-              type="small"
-              style={[styles.cell, styles.expiryCell, { color: theme.textSecondary }]}
-            >
-              {expiryDate ? formatDate(expiryDate) : "N/A"}
-            </ThemedText>
-            <View style={[styles.cell, styles.actionsCell]}>
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  toggleDropdown(item.id);
-                }}
-                style={({ pressed }) => [
-                  styles.actionsButton,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Feather name="more-vertical" size={18} color={theme.text} />
-              </Pressable>
+      <Pressable
+        onPress={() => navigation.navigate("ProductDetail", { productId: item.id })}
+      >
+        <View style={[styles.tableRow, { backgroundColor: theme.background }]}>
+          <ThemedText
+            type="caption"
+            style={[styles.cell, styles.skuCell, { color: theme.textSecondary }]}
+            numberOfLines={1}
+          >
+            {item.sku}
+          </ThemedText>
+          <ThemedText type="small" style={[styles.cell, styles.nameCell]} numberOfLines={1}>
+            {item.name}
+          </ThemedText>
+          <ThemedText
+            type="small"
+            style={[styles.cell, styles.categoryCell]}
+            numberOfLines={1}
+          >
+            {category?.name || "N/A"}
+          </ThemedText>
+          <ThemedText type="small" style={[styles.cell, styles.stockCell]}>
+            {stock}
+          </ThemedText>
+          <ThemedText
+            type="small"
+            style={[styles.cell, styles.unitCell, { color: theme.textSecondary }]}
+          >
+            {item.unit}
+          </ThemedText>
+          <View style={[styles.cell, styles.statusCell]}>
+            <View style={[styles.statusBadge, { backgroundColor: status.color + "20" }]}>
+              <ThemedText type="caption" style={{ color: status.color }}>
+                {status.label}
+              </ThemedText>
             </View>
           </View>
-        </Pressable>
+          <ThemedText
+            type="small"
+            style={[styles.cell, styles.expiryCell, { color: theme.textSecondary }]}
+          >
+            {expiryDate ? formatDate(expiryDate) : "N/A"}
+          </ThemedText>
+          <View style={[styles.cell, styles.actionsCell]}>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                toggleDropdown(item.id);
+              }}
+              style={({ pressed }) => [
+                styles.actionsButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="more-vertical" size={18} color={theme.text} />
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
 
-        {isDropdownOpen && (
-          <View style={[styles.dropdown, { backgroundColor: theme.surface }]}>
-            <Pressable
-              onPress={() => handleEditProduct(item.id)}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                { backgroundColor: pressed ? theme.divider : "transparent" },
-              ]}
-            >
-              <Feather name="edit" size={16} color={theme.text} />
-              <ThemedText type="small" style={styles.dropdownText}>
-                Edit Product
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => handleViewHistory(item.id)}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                { backgroundColor: pressed ? theme.divider : "transparent" },
-              ]}
-            >
-              <Feather name="clock" size={16} color={theme.text} />
-              <ThemedText type="small" style={styles.dropdownText}>
-                View History
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => handleAdjustStock(item.id)}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                { backgroundColor: pressed ? theme.divider : "transparent" },
-              ]}
-            >
-              <Feather name="trending-up" size={16} color={theme.text} />
-              <ThemedText type="small" style={styles.dropdownText}>
-                Adjust Stock
-              </ThemedText>
-            </Pressable>
-            <View style={[styles.dropdownDivider, { backgroundColor: theme.divider }]} />
-            <Pressable
-              onPress={() => handleDeleteProduct(item.id)}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                { backgroundColor: pressed ? theme.divider : "transparent" },
-              ]}
-            >
-              <Feather name="trash-2" size={16} color={Colors.accent.error} />
-              <ThemedText type="small" style={[styles.dropdownText, { color: Colors.accent.error }]}>
-                Delete
-              </ThemedText>
-            </Pressable>
-          </View>
-        )}
+  const renderDropdown = (item: Product) => {
+    if (openDropdownId !== item.id) return null;
+
+    return (
+      <View style={[styles.dropdownOverlay, { backgroundColor: 'transparent' }]}>
+        <Pressable 
+          style={StyleSheet.absoluteFill} 
+          onPress={() => setOpenDropdownId(null)}
+        />
+        <View style={[styles.dropdown, { backgroundColor: theme.surface }]}>
+          <Pressable
+            onPress={() => handleEditProduct(item.id)}
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              { backgroundColor: pressed ? theme.divider : "transparent" },
+            ]}
+          >
+            <Feather name="edit" size={16} color={theme.text} />
+            <ThemedText type="small" style={styles.dropdownText}>
+              Edit Product
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => handleViewHistory(item.id)}
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              { backgroundColor: pressed ? theme.divider : "transparent" },
+            ]}
+          >
+            <Feather name="clock" size={16} color={theme.text} />
+            <ThemedText type="small" style={styles.dropdownText}>
+              View History
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => handleAdjustStock(item.id)}
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              { backgroundColor: pressed ? theme.divider : "transparent" },
+            ]}
+          >
+            <Feather name="trending-up" size={16} color={theme.text} />
+            <ThemedText type="small" style={styles.dropdownText}>
+              Adjust Stock
+            </ThemedText>
+          </Pressable>
+          <View style={[styles.dropdownDivider, { backgroundColor: theme.divider }]} />
+          <Pressable
+            onPress={() => handleDeleteProduct(item.id)}
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              { backgroundColor: pressed ? theme.divider : "transparent" },
+            ]}
+          >
+            <Feather name="trash-2" size={16} color={Colors.accent.error} />
+            <ThemedText type="small" style={[styles.dropdownText, { color: Colors.accent.error }]}>
+              Delete
+            </ThemedText>
+          </Pressable>
+        </View>
       </View>
     );
   };
@@ -333,24 +341,26 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
         </View>
 
         {filteredProducts.length > 0 ? (
-          <FlatList
-            data={filteredProducts}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderHeader}
-            renderItem={({ item }) => (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={true}
-                scrollEnabled={true}
-              >
-                <View style={{ minWidth: 1000 }}>
-                  {renderTableRow({ item })}
-                </View>
-              </ScrollView>
-            )}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
-          />
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={true}
+              scrollEnabled={true}
+            >
+              <View style={{ minWidth: 1000 }}>
+                <FlatList
+                  data={filteredProducts}
+                  keyExtractor={(item) => item.id}
+                  ListHeaderComponent={renderHeader}
+                  renderItem={renderTableRow}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={true}
+                  contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
+                />
+              </View>
+            </ScrollView>
+            {filteredProducts.map((product) => renderDropdown(product))}
+          </>
         ) : (
           <View style={styles.emptyContainer}>
             {renderHeader()}
@@ -469,18 +479,24 @@ const styles = StyleSheet.create({
   actionsButton: {
     padding: Spacing.xs,
   },
-  dropdown: {
+  dropdownOverlay: {
     position: "absolute",
-    right: Spacing.lg,
-    top: 48,
-    minWidth: 160,
-    borderRadius: BorderRadius.md,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 1000,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dropdown: {
+    minWidth: 200,
+    borderRadius: BorderRadius.md,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
