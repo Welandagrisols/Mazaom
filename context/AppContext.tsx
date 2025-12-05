@@ -67,23 +67,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const loadedUser = await UserStorage.get();
 
       if (loadedProducts.length === 0) {
-        loadedProducts = SAMPLE_PRODUCTS;
-        await ProductStorage.save(loadedProducts);
+        for (const product of SAMPLE_PRODUCTS) {
+          await ProductStorage.add(product);
+        }
+        loadedProducts = await ProductStorage.getAll();
       }
 
       if (loadedCustomers.length === 0) {
-        loadedCustomers = SAMPLE_CUSTOMERS;
-        await CustomerStorage.save(loadedCustomers);
+        for (const customer of SAMPLE_CUSTOMERS) {
+          await CustomerStorage.add(customer);
+        }
+        loadedCustomers = await CustomerStorage.getAll();
       }
 
       if (loadedSuppliers.length === 0) {
-        loadedSuppliers = SAMPLE_SUPPLIERS;
-        await SupplierStorage.save(loadedSuppliers);
+        for (const supplier of SAMPLE_SUPPLIERS) {
+          await SupplierStorage.add(supplier);
+        }
+        loadedSuppliers = await SupplierStorage.getAll();
       }
 
       if (loadedBatches.length === 0) {
-        loadedBatches = generateSampleBatches(loadedProducts);
-        await BatchStorage.save(loadedBatches);
+        const sampleBatches = generateSampleBatches(loadedProducts);
+        for (const batch of sampleBatches) {
+          await BatchStorage.add(batch);
+        }
+        loadedBatches = await BatchStorage.getAll();
       }
 
       setProducts(loadedProducts);
@@ -206,12 +215,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           for (const batch of productBatches) {
             if (remainingQty <= 0) break;
             const deduct = Math.min(batch.quantity, remainingQty);
-            batch.quantity -= deduct;
+            const newQuantity = batch.quantity - deduct;
+            await BatchStorage.updateQuantity(batch.id, newQuantity);
+            batch.quantity = newQuantity;
             remainingQty -= deduct;
           }
         }
-        await BatchStorage.save(batches);
-        setBatches([...batches]);
+        
+        const updatedBatches = await BatchStorage.getAll();
+        setBatches(updatedBatches);
         
         clearCart();
         return transaction;
