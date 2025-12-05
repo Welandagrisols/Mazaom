@@ -36,6 +36,7 @@ export default function POSScreen({ navigation }: POSScreenProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [showBulkSaleModal, setShowBulkSaleModal] = useState(false);
+  const [showBulkSaleSelector, setShowBulkSaleSelector] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [quantity, setQuantity] = useState("1");
 
@@ -61,6 +62,10 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
   const quickProducts = useMemo(() => {
     return products.filter((p) => p.active).slice(0, 8);
+  }, [products]);
+
+  const bulkSaleProducts = useMemo(() => {
+    return products.filter((p) => p.active && p.isBulkItem);
   }, [products]);
 
   const handleBarcodePress = useCallback(() => {
@@ -111,6 +116,18 @@ export default function POSScreen({ navigation }: POSScreenProps) {
             placeholder="Search products or scan barcode..."
             onBarcodePress={handleBarcodePress}
           />
+          <Pressable
+            onPress={() => setShowBulkSaleSelector(true)}
+            style={({ pressed }) => [
+              styles.bulkSaleButton,
+              { backgroundColor: Colors.primary.main, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Feather name="package" size={20} color="#FFFFFF" />
+            <ThemedText type="body" style={styles.bulkSaleButtonText}>
+              Bulk Sale
+            </ThemedText>
+          </Pressable>
         </View>
 
         <View style={styles.categoriesSection}>
@@ -358,6 +375,87 @@ export default function POSScreen({ navigation }: POSScreenProps) {
         onAddToCart={handleBulkSaleAddToCart}
       />
 
+      <Modal
+        visible={showBulkSaleSelector}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBulkSaleSelector(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowBulkSaleSelector(false)}
+        >
+          <Pressable 
+            style={[styles.bulkSelectorModal, { backgroundColor: theme.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.bulkSelectorHeader}>
+              <View>
+                <ThemedText type="h4">Bulk Sale</ThemedText>
+                <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: 4 }}>
+                  Select product to sell by weight/measurement
+                </ThemedText>
+              </View>
+              <Pressable onPress={() => setShowBulkSaleSelector(false)}>
+                <Feather name="x" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+
+            {bulkSaleProducts.length > 0 ? (
+              <ScrollView 
+                style={styles.bulkProductsList}
+                showsVerticalScrollIndicator={false}
+              >
+                {bulkSaleProducts.map((product) => (
+                  <Pressable
+                    key={product.id}
+                    onPress={() => {
+                      setSelectedProduct(product);
+                      setShowBulkSaleSelector(false);
+                      setShowBulkSaleModal(true);
+                    }}
+                    style={({ pressed }) => [
+                      styles.bulkProductItem,
+                      { 
+                        backgroundColor: theme.backgroundSecondary,
+                        opacity: pressed ? 0.7 : 1
+                      },
+                    ]}
+                  >
+                    <View style={styles.bulkProductInfo}>
+                      <ThemedText type="body" style={{ fontWeight: "600" }}>
+                        {product.name}
+                      </ThemedText>
+                      <ThemedText type="caption" style={{ color: theme.textSecondary, marginTop: 2 }}>
+                        {formatCurrency(product.pricePerKg || product.retailPrice)}/kg
+                        {product.packageWeight && ` • ${product.packageWeight}kg package`}
+                      </ThemedText>
+                      <View style={styles.bulkProductBadge}>
+                        <Feather name="info" size={12} color={Colors.primary.main} />
+                        <ThemedText type="caption" style={{ color: Colors.primary.main, marginLeft: 4 }}>
+                          Stock: {getProductStock(product.id)} units
+                        </ThemedText>
+                      </View>
+                    </View>
+                    <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyBulkProducts}>
+                <Feather name="package" size={40} color={theme.textSecondary} />
+                <ThemedText type="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No bulk sale products available
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: theme.textSecondary, textAlign: "center", marginTop: 4 }}>
+                  Add products marked as "Bulk Item" in inventory
+                </ThemedText>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {cart.length > 0 ? (
         <Pressable
           onPress={() => navigation.navigate("Checkout")}
@@ -392,6 +490,65 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     marginBottom: Spacing.md,
+    flexDirection: "row",
+    gap: Spacing.md,
+    alignItems: "center",
+  },
+  bulkSaleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  bulkSaleButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  bulkSelectorModal: {
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "80%",
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginTop: "auto",
+    marginBottom: 40,
+  },
+  bulkSelectorHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: Spacing.lg,
+  },
+  bulkProductsList: {
+    flex: 1,
+  },
+  bulkProductItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  bulkProductInfo: {
+    flex: 1,
+  },
+  bulkProductBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.xs,
+  },
+  emptyBulkProducts: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing["2xl"],
+  },
+  emptyText: {
+    marginTop: Spacing.md,
+    textAlign: "center",
   },
   categoriesSection: {
     marginBottom: Spacing.md,
