@@ -5,6 +5,10 @@ modules = ["nodejs-20", "web", "postgresql-16"]
 channel = "stable-25_05"
 
 [[ports]]
+localPort = 3001
+externalPort = 4200
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
@@ -21,12 +25,12 @@ localPort = 43329
 externalPort = 3002
 
 [[ports]]
-localPort = 45495
-externalPort = 3001
+localPort = 45073
+externalPort = 3003
 
 [[ports]]
-localPort = 45719
-externalPort = 3003
+localPort = 45495
+externalPort = 3001
 
 [workflows]
 runButton = "Project"
