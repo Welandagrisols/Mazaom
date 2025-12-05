@@ -1,13 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt } from "@/types";
 import { 
-  DbProductStorage, 
-  DbCustomerStorage, 
-  DbSupplierStorage, 
-  DbTransactionStorage, 
-  DbBatchStorage,
-  DbUserStorage 
-} from "@/lib/dbStorage";
+  SupabaseProductStorage, 
+  SupabaseCustomerStorage, 
+  SupabaseSupplierStorage, 
+  SupabaseTransactionStorage, 
+  SupabaseBatchStorage 
+} from "@/lib/supabaseStorage";
 
 const STORAGE_KEYS = {
   USER: "@agrovet_user",
@@ -46,33 +45,33 @@ async function removeItem(key: string): Promise<boolean> {
   }
 }
 
-export const ProductStorage = DbProductStorage;
+export const ProductStorage = SupabaseProductStorage;
 
-export const CustomerStorage = DbCustomerStorage;
+export const CustomerStorage = SupabaseCustomerStorage;
 
-export const SupplierStorage = DbSupplierStorage;
+export const SupplierStorage = SupabaseSupplierStorage;
 
 export const TransactionStorage = {
-  ...DbTransactionStorage,
+  ...SupabaseTransactionStorage,
   async getByDateRange(startDate: string, endDate: string): Promise<Transaction[]> {
-    const transactions = await DbTransactionStorage.getAll();
+    const transactions = await SupabaseTransactionStorage.getAll();
     return transactions.filter(
       (t) => t.transactionDate >= startDate && t.transactionDate <= endDate
     );
   },
   async getToday(): Promise<Transaction[]> {
     const today = new Date().toISOString().split("T")[0];
-    const transactions = await DbTransactionStorage.getAll();
+    const transactions = await SupabaseTransactionStorage.getAll();
     return transactions.filter((t) => t.transactionDate.startsWith(today));
   },
 };
 
 export const BatchStorage = {
-  ...DbBatchStorage,
+  ...SupabaseBatchStorage,
   async save(batches: InventoryBatch[]): Promise<boolean> {
     try {
       for (const batch of batches) {
-        await DbBatchStorage.update(batch);
+        await SupabaseBatchStorage.update(batch);
       }
       return true;
     } catch (error) {
@@ -81,7 +80,7 @@ export const BatchStorage = {
     }
   },
   async getExpiringSoon(days: number = 30): Promise<InventoryBatch[]> {
-    const batches = await DbBatchStorage.getAll();
+    const batches = await SupabaseBatchStorage.getAll();
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
     return batches.filter((b) => {
