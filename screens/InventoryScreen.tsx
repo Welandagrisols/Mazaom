@@ -112,32 +112,40 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
   };
 
   const renderTableHeader = () => (
-    <View style={[styles.tableRow, styles.tableHeader, { backgroundColor: theme.surface }]}>
-      <ThemedText type="caption" style={[styles.headerCell, styles.skuCell]}>
-        SKU / ID
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.nameCell]}>
-        Product Name
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.categoryCell]}>
-        Category
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.stockCell]}>
-        Stock Level
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.unitCell]}>
-        Unit
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.statusCell]}>
-        Status
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.expiryCell]}>
-        Expiry Date
-      </ThemedText>
-      <ThemedText type="caption" style={[styles.headerCell, styles.actionsCell]}>
-        Actions
-      </ThemedText>
-    </View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      scrollEnabled={true}
+    >
+      <View style={{ minWidth: 1000 }}>
+        <View style={[styles.tableRow, styles.tableHeader, { backgroundColor: theme.surface }]}>
+          <ThemedText type="caption" style={[styles.headerCell, styles.skuCell]}>
+            SKU / ID
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.nameCell]}>
+            Product Name
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.categoryCell]}>
+            Category
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.stockCell]}>
+            Stock Level
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.unitCell]}>
+            Unit
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.statusCell]}>
+            Status
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.expiryCell]}>
+            Expiry Date
+          </ThemedText>
+          <ThemedText type="caption" style={[styles.headerCell, styles.actionsCell]}>
+            Actions
+          </ThemedText>
+        </View>
+      </View>
+    </ScrollView>
   );
 
   const renderTableRow = ({ item }: { item: Product }) => {
@@ -325,23 +333,24 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
         </View>
 
         {filteredProducts.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={true}
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <View style={{ minWidth: 1000 }}>
-              <FlatList
-                data={filteredProducts}
-                keyExtractor={(item) => item.id}
-                ListHeaderComponent={renderHeader}
-                renderItem={renderTableRow}
-                showsVerticalScrollIndicator={false}
-                scrollEnabled={false}
-                contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
-              />
-            </View>
-          </ScrollView>
+          <FlatList
+            data={filteredProducts}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={renderHeader}
+            renderItem={({ item }) => (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={true}
+                scrollEnabled={true}
+              >
+                <View style={{ minWidth: 1000 }}>
+                  {renderTableRow({ item })}
+                </View>
+              </ScrollView>
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
+          />
         ) : (
           <View style={styles.emptyContainer}>
             {renderHeader()}
