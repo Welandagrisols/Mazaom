@@ -325,14 +325,23 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
         </View>
 
         {filteredProducts.length > 0 ? (
-          <FlatList
-            data={filteredProducts}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderHeader}
-            renderItem={renderTableRow}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
-          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={true}
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            <View style={{ minWidth: 1000 }}>
+              <FlatList
+                data={filteredProducts}
+                keyExtractor={(item) => item.id}
+                ListHeaderComponent={renderHeader}
+                renderItem={renderTableRow}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={false}
+                contentContainerStyle={[styles.tableContainer, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
+              />
+            </View>
+          </ScrollView>
         ) : (
           <View style={styles.emptyContainer}>
             {renderHeader()}
@@ -417,24 +426,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
   },
   skuCell: {
-    width: 80,
+    width: 100,
   },
   nameCell: {
-    flex: 1,
-    minWidth: 120,
+    width: 180,
   },
   categoryCell: {
-    width: 100,
+    width: 120,
   },
   stockCell: {
     width: 80,
     textAlign: "center",
   },
   unitCell: {
-    width: 60,
+    width: 70,
   },
   statusCell: {
-    width: 100,
+    width: 110,
     alignItems: "center",
   },
   statusBadge: {
@@ -443,10 +451,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   expiryCell: {
-    width: 90,
+    width: 100,
   },
   actionsCell: {
-    width: 50,
+    width: 60,
     alignItems: "center",
   },
   actionsButton: {
