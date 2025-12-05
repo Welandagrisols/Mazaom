@@ -31,9 +31,11 @@ interface AppContextType {
   completeSale: (paymentMethod: string, customerId?: string, discount?: number, notes?: string) => Promise<Transaction | null>;
   addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Promise<boolean>;
   updateProduct: (product: Product) => Promise<boolean>;
+  deleteProduct: (productId: string) => Promise<boolean>;
   addCustomer: (customer: Omit<Customer, "id">) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<boolean>;
   getProductStock: (productId: string) => number;
+  getProductBatch: (productId: string) => InventoryBatch | undefined;
   getTodaySales: () => number;
   getTodayTransactionCount: () => number;
   getLowStockProducts: () => Product[];
@@ -288,6 +290,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [batches]
   );
 
+  const getProductBatch = useCallback(
+    (productId: string): InventoryBatch | undefined => {
+      return batches.find((b) => b.productId === productId);
+    },
+    [batches]
+  );
+
+  const deleteProduct = useCallback(async (productId: string): Promise<boolean> => {
+    const success = await ProductStorage.delete(productId);
+    if (success) {
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+    }
+    return success;
+  }, []);
+
   const getTodaySales = useCallback((): number => {
     const today = new Date().toISOString().split("T")[0];
     return transactions
@@ -367,9 +384,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completeSale,
         addProduct,
         updateProduct,
+        deleteProduct,
         addCustomer,
         addSupplier,
         getProductStock,
+        getProductBatch,
         getTodaySales,
         getTodayTransactionCount,
         getLowStockProducts,

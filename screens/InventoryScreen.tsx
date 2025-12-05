@@ -1,22 +1,22 @@
-import React, { useState, useMemo } from "react";
-import { View, StyleSheet, FlatList, ScrollView, Pressable } from "react-native";
+import React, { useState, useMemo, useCallback } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { SearchBar } from "@/components/SearchBar";
-import { ProductCard } from "@/components/ProductCard";
 import { CategoryChip } from "@/components/CategoryChip";
 import { EmptyState } from "@/components/EmptyState";
+import { InventoryTable } from "@/components/InventoryTable";
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { CATEGORIES } from "@/constants/categories";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
+import { Product } from "@/types";
 
 type InventoryScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "Inventory">;
@@ -26,7 +26,7 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { products, getLowStockProducts, getProductStock } = useApp();
+  const { products, batches, getLowStockProducts, getProductStock, getProductBatch, deleteProduct } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -53,53 +53,49 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
     return result;
   }, [products, selectedCategory, searchQuery]);
 
-  const renderHeader = () => (
-    <>
-      {lowStockProducts.length > 0 ? (
-        <View style={[styles.alertBanner, { backgroundColor: Colors.badges.lowStock.bg }]}>
-          <Feather name="alert-triangle" size={16} color={Colors.accent.warning} />
-          <ThemedText type="small" style={{ color: Colors.accent.warning, marginLeft: 8, flex: 1 }}>
-            {lowStockProducts.length} product{lowStockProducts.length !== 1 ? "s" : ""} running low on
-            stock
-          </ThemedText>
-        </View>
-      ) : null}
+  const handleEditProduct = useCallback((product: Product) => {
+    navigation.navigate("ProductDetail", { productId: product.id });
+  }, [navigation]);
 
-      <View style={styles.categoriesSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          <CategoryChip
-            id="all"
-            name="All"
-            icon="grid"
-            isSelected={selectedCategory === null}
-            onPress={() => setSelectedCategory(null)}
-          />
-          {CATEGORIES.map((category) => (
-            <CategoryChip
-              key={category.id}
-              id={category.id}
-              name={category.name}
-              icon={category.icon}
-              isSelected={selectedCategory === category.id}
-              onPress={() => setSelectedCategory(category.id)}
-            />
-          ))}
-        </ScrollView>
-      </View>
+  const handleViewHistory = useCallback((product: Product) => {
+    navigation.navigate("ProductDetail", { productId: product.id });
+  }, [navigation]);
 
-      <ThemedText type="small" style={[styles.resultCount, { color: theme.textSecondary }]}>
-        {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
-      </ThemedText>
-    </>
-  );
+  const handleAdjustStock = useCallback((product: Product) => {
+    navigation.navigate("ProductDetail", { productId: product.id });
+  }, [navigation]);
+
+  const handleDeleteProduct = useCallback((product: Product) => {
+    Alert.alert(
+      "Delete Product",
+      `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteProduct(product.id);
+          },
+        },
+      ]
+    );
+  }, [deleteProduct]);
+
+  const handleProductPress = useCallback((product: Product) => {
+    navigation.navigate("ProductDetail", { productId: product.id });
+  }, [navigation]);
 
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.content, { paddingTop: headerHeight + Spacing.lg }]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: headerHeight + Spacing.lg, paddingBottom: tabBarHeight + Spacing.xl + 80 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.searchSection}>
           <SearchBar
             value={searchQuery}
@@ -109,32 +105,71 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
           />
         </View>
 
-        {filteredProducts.length > 0 ? (
-          <FlatList
-            data={filteredProducts}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderHeader}
-            renderItem={({ item }) => (
-              <ProductCard
-                product={item}
-                stock={getProductStock(item.id)}
-                onPress={() => navigation.navigate("ProductDetail", { productId: item.id })}
+        {lowStockProducts.length > 0 ? (
+          <View style={[styles.alertBanner, { backgroundColor: Colors.badges.lowStock.bg }]}>
+            <Feather name="alert-triangle" size={16} color={Colors.accent.warning} />
+            <ThemedText type="small" style={{ color: Colors.accent.warning, marginLeft: 8, flex: 1 }}>
+              {lowStockProducts.length} product{lowStockProducts.length !== 1 ? "s" : ""} running low on
+              stock
+            </ThemedText>
+          </View>
+        ) : null}
+
+        <View style={styles.categoriesSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContent}
+          >
+            <CategoryChip
+              id="all"
+              name="All"
+              icon="grid"
+              isSelected={selectedCategory === null}
+              onPress={() => setSelectedCategory(null)}
+            />
+            {CATEGORIES.map((category) => (
+              <CategoryChip
+                key={category.id}
+                id={category.id}
+                name={category.name}
+                icon={category.icon}
+                isSelected={selectedCategory === category.id}
+                onPress={() => setSelectedCategory(category.id)}
               />
-            )}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.productsList, { paddingBottom: tabBarHeight + Spacing.xl + 80 }]}
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.headerRow}>
+          <ThemedText type="h4" style={styles.sectionTitle}>
+            Inventory
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
+          </ThemedText>
+        </View>
+
+        {filteredProducts.length > 0 ? (
+          <InventoryTable
+            products={filteredProducts}
+            batches={batches}
+            getProductStock={getProductStock}
+            getProductBatch={getProductBatch}
+            onEditProduct={handleEditProduct}
+            onViewHistory={handleViewHistory}
+            onAdjustStock={handleAdjustStock}
+            onDeleteProduct={handleDeleteProduct}
+            onProductPress={handleProductPress}
           />
         ) : (
-          <View style={styles.emptyContainer}>
-            {renderHeader()}
-            <EmptyState
-              icon="package"
-              title="No products found"
-              description="Try adjusting your search or category filter"
-            />
-          </View>
+          <EmptyState
+            icon="package"
+            title="No products found"
+            description="Try adjusting your search or category filter"
+          />
         )}
-      </View>
+      </ScrollView>
 
       <Pressable
         onPress={() => navigation.navigate("AddProduct")}
@@ -157,8 +192,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: Spacing.lg,
   },
   searchSection: {
@@ -172,20 +209,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   categoriesSection: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   categoriesContent: {
     paddingRight: Spacing.lg,
   },
-  resultCount: {
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: Spacing.md,
+  },
+  sectionTitle: {
     fontWeight: "600",
-  },
-  productsList: {
-    paddingBottom: Spacing.xl,
-  },
-  emptyContainer: {
-    flex: 1,
   },
   fab: {
     position: "absolute",
