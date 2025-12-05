@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -31,6 +32,16 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   const discountAmount = parseFloat(discount) || 0;
   const total = subtotal - discountAmount;
 
+  // Reset form when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      setSelectedPayment("cash");
+      setSelectedCustomer(null);
+      setDiscount("");
+      setNotes("");
+    }, [])
+  );
+
   const handleCompleteSale = useCallback(async () => {
     if (cart.length === 0) {
       Alert.alert("Error", "Cart is empty");
@@ -47,6 +58,10 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       );
 
       if (transaction) {
+        // Navigate back to POS screen first
+        navigation.navigate("POS");
+        
+        // Then show success alert
         Alert.alert(
           "Sale Complete",
           `Transaction ${transaction.transactionNumber} completed successfully!`,
@@ -59,10 +74,8 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
               },
             },
             {
-              text: "New Sale",
-              onPress: () => {
-                navigation.navigate("POS");
-              },
+              text: "OK",
+              style: "cancel"
             },
           ]
         );
