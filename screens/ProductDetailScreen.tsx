@@ -13,6 +13,7 @@ import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { CATEGORIES, UNITS } from "@/constants/categories";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
+import { Pressable } from "react-native";
 
 type ProductDetailScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ProductDetail">;
@@ -65,6 +66,13 @@ export default function ProductDetailScreen({ route }: ProductDetailScreenProps)
 
   return (
     <ScreenScrollView>
+      <Pressable
+        onPress={() => navigation.navigate("AddProduct")}
+        style={[styles.editButton, { backgroundColor: Colors.primary.main }]}
+      >
+        <Feather name="edit" size={20} color="#FFFFFF" />
+      </Pressable>
+      
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <View style={[styles.iconContainer, { backgroundColor: Colors.primary.light + "20" }]}>
           <Feather name={category?.icon as any || "box"} size={48} color={Colors.primary.main} />
@@ -218,6 +226,22 @@ export default function ProductDetailScreen({ route }: ProductDetailScreenProps)
 }
 
 const styles = StyleSheet.create({
+  editButton: {
+    position: "absolute",
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
   header: {
     alignItems: "center",
     padding: Spacing.xl,

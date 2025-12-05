@@ -54,12 +54,15 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
             {
               text: "View Details",
               onPress: () => {
-                navigation.replace("TransactionDetail", { transactionId: transaction.id });
+                navigation.navigate("Transactions");
+                navigation.navigate("TransactionDetail", { transactionId: transaction.id });
               },
             },
             {
               text: "New Sale",
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                navigation.navigate("POS");
+              },
             },
           ]
         );
