@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, isSupabaseConfigured } from "./supabase";
-import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt } from "@/types";
+import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt, PurchasePriceRecord } from "@/types";
 
 const STORAGE_KEYS = {
   PRODUCTS: "@agrovet_products",
@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   RECEIPTS: "@agrovet_receipts",
   CART: "@agrovet_cart",
   SETTINGS: "@agrovet_settings",
+  PRICE_HISTORY: "@agrovet_price_history",
 };
 
 async function getItem<T>(key: string): Promise<T | null> {
@@ -501,6 +502,29 @@ export const SettingsStorage = {
   },
   async save(settings: Record<string, unknown>): Promise<boolean> {
     return setItem(STORAGE_KEYS.SETTINGS, settings);
+  },
+};
+
+export const PriceHistoryStorage = {
+  async getAll(): Promise<PurchasePriceRecord[]> {
+    return (await getItem<PurchasePriceRecord[]>(STORAGE_KEYS.PRICE_HISTORY)) || [];
+  },
+  async save(records: PurchasePriceRecord[]): Promise<boolean> {
+    return setItem(STORAGE_KEYS.PRICE_HISTORY, records);
+  },
+  async add(record: PurchasePriceRecord): Promise<boolean> {
+    const records = await this.getAll();
+    records.unshift(record);
+    return setItem(STORAGE_KEYS.PRICE_HISTORY, records);
+  },
+  async getByProductId(productId: string): Promise<PurchasePriceRecord[]> {
+    const records = await this.getAll();
+    return records.filter((r) => r.productId === productId);
+  },
+  async addMultiple(newRecords: PurchasePriceRecord[]): Promise<boolean> {
+    const records = await this.getAll();
+    records.unshift(...newRecords);
+    return setItem(STORAGE_KEYS.PRICE_HISTORY, records);
   },
 };
 

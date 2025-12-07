@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Product, Customer, Supplier, Transaction, InventoryBatch, CartItem, User } from "@/types";
+import { Product, Customer, Supplier, Transaction, InventoryBatch, CartItem, User, PurchasePriceRecord, ReceiptProcessingMode, ProcessedReceiptResult } from "@/types";
 import {
   ProductStorage,
   CustomerStorage,
@@ -7,10 +7,12 @@ import {
   TransactionStorage,
   BatchStorage,
   UserStorage,
+  PriceHistoryStorage,
   generateId,
   generateTransactionNumber,
 } from "@/utils/storage";
 import { SAMPLE_PRODUCTS, SAMPLE_CUSTOMERS, SAMPLE_SUPPLIERS, generateSampleBatches } from "@/utils/sampleData";
+import { ExtractedReceiptData } from "@/utils/openaiVision";
 
 interface AppContextType {
   products: Product[];
@@ -20,6 +22,7 @@ interface AppContextType {
   batches: InventoryBatch[];
   cart: CartItem[];
   user: User | null;
+  priceHistory: PurchasePriceRecord[];
   isLoading: boolean;
   loadData: () => Promise<void>;
   addToCart: (product: Product, quantity?: number, fractionalDetails?: { weight: number; totalPrice: number }) => void;
@@ -38,6 +41,8 @@ interface AppContextType {
   getTodayTransactionCount: () => number;
   getLowStockProducts: () => Product[];
   searchProducts: (query: string) => Product[];
+  processReceiptData: (data: ExtractedReceiptData, mode: ReceiptProcessingMode) => Promise<ProcessedReceiptResult>;
+  getPriceHistory: (productId: string) => PurchasePriceRecord[];
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -52,6 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PurchasePriceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -63,6 +69,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let loadedBatches = await BatchStorage.getAll();
       const loadedTransactions = await TransactionStorage.getAll();
       const loadedUser = await UserStorage.get();
+      const loadedPriceHistory = await PriceHistoryStorage.getAll();
 
       if (loadedProducts.length === 0) {
         loadedProducts = SAMPLE_PRODUCTS;
@@ -95,6 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTransactions(loadedTransactions);
       setBatches(loadedBatches);
       setUser(loadedUser);
+      setPriceHistory(loadedPriceHistory);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -348,6 +356,140 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [products]
   );
 
+  const getPriceHistory = useCallback(
+    (productId: string): PurchasePriceRecord[] => {
+      return priceHistory.filter((r) => r.productId === productId);
+    },
+    [priceHistory]
+  );
+
+  const findMatchingProduct = useCallback(
+    (itemName: string): Product | null => {
+      const lowerName = itemName.toLowerCase().trim();
+      const exactMatch = products.find(
+        (p) => p.name.toLowerCase() === lowerName
+      );
+      if (exactMatch) return exactMatch;
+      const partialMatch = products.find(
+        (p) =>
+          p.name.toLowerCase().includes(lowerName) ||
+          lowerName.includes(p.name.toLowerCase())
+      );
+      return partialMatch || null;
+    },
+    [products]
+  );
+
+  const processReceiptData = useCallback(
+    async (
+      data: ExtractedReceiptData,
+      mode: ReceiptProcessingMode
+    ): Promise<ProcessedReceiptResult> => {
+      const result: ProcessedReceiptResult = {
+        newProductsCreated: 0,
+        existingProductsUpdated: 0,
+        priceRecordsAdded: 0,
+        stockAdded: 0,
+        mode,
+      };
+
+      const newPriceRecords: PurchasePriceRecord[] = [];
+      const newBatches: InventoryBatch[] = [];
+      const updatedProducts: Product[] = [];
+      const createdProducts: Product[] = [];
+
+      for (const item of data.items) {
+        let product = findMatchingProduct(item.name);
+
+        if (!product) {
+          const newProduct: Product = {
+            id: generateId(),
+            name: item.name,
+            description: `Imported from receipt`,
+            category: "feeds",
+            sku: `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+            unit: item.unit as any || "piece",
+            retailPrice: Math.round(item.unitPrice * 1.3),
+            wholesalePrice: Math.round(item.unitPrice * 1.15),
+            costPrice: item.unitPrice,
+            reorderLevel: 10,
+            active: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            itemType: "unit",
+          };
+          await ProductStorage.add(newProduct);
+          createdProducts.push(newProduct);
+          product = newProduct;
+          result.newProductsCreated++;
+        } else {
+          if (product.costPrice !== item.unitPrice) {
+            const updatedProduct = {
+              ...product,
+              costPrice: item.unitPrice,
+              updatedAt: new Date().toISOString(),
+            };
+            await ProductStorage.update(updatedProduct);
+            updatedProducts.push(updatedProduct);
+            result.existingProductsUpdated++;
+          }
+        }
+
+        const priceRecord: PurchasePriceRecord = {
+          id: generateId(),
+          productId: product.id,
+          supplierName: data.supplierName,
+          purchaseDate: data.date || new Date().toISOString().split("T")[0],
+          unitCost: item.unitPrice,
+          quantity: item.quantity,
+          receiptNumber: data.receiptNumber,
+          createdAt: new Date().toISOString(),
+        };
+        newPriceRecords.push(priceRecord);
+        result.priceRecordsAdded++;
+
+        if (mode === "current_stock") {
+          const batch: InventoryBatch = {
+            id: generateId(),
+            productId: product.id,
+            batchNumber: `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+            quantity: item.quantity,
+            purchaseDate: data.date || new Date().toISOString().split("T")[0],
+            costPerUnit: item.unitPrice,
+          };
+          await BatchStorage.add(batch);
+          newBatches.push(batch);
+          result.stockAdded += item.quantity;
+        }
+      }
+
+      if (newPriceRecords.length > 0) {
+        await PriceHistoryStorage.addMultiple(newPriceRecords);
+        setPriceHistory((prev) => [...newPriceRecords, ...prev]);
+      }
+
+      if (createdProducts.length > 0) {
+        setProducts((prev) => [...prev, ...createdProducts]);
+      }
+
+      if (updatedProducts.length > 0) {
+        setProducts((prev) =>
+          prev.map((p) => {
+            const updated = updatedProducts.find((u) => u.id === p.id);
+            return updated || p;
+          })
+        );
+      }
+
+      if (newBatches.length > 0) {
+        setBatches((prev) => [...prev, ...newBatches]);
+      }
+
+      return result;
+    },
+    [findMatchingProduct]
+  );
+
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {
       if (email && password.length >= 4) {
@@ -383,6 +525,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         batches,
         cart,
         user,
+        priceHistory,
         isLoading,
         loadData,
         addToCart,
@@ -401,6 +544,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getTodayTransactionCount,
         getLowStockProducts,
         searchProducts,
+        processReceiptData,
+        getPriceHistory,
         login,
         logout,
       }}

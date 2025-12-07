@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Pressable, Image, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { View, StyleSheet, Pressable, Image, ScrollView, ActivityIndicator, Alert, Switch } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -12,6 +12,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
 import { extractReceiptData, isOpenAIConfigured, ExtractedReceiptData } from "@/utils/openaiVision";
+import { useApp } from "@/context/AppContext";
+import { ReceiptProcessingMode } from "@/types";
 
 type ReceiptUploadScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ReceiptUpload">;
@@ -20,10 +22,13 @@ type ReceiptUploadScreenProps = {
 export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
+  const { processReceiptData } = useApp();
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAddingToInventory, setIsAddingToInventory] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedReceiptData | null>(null);
+  const [processingMode, setProcessingMode] = useState<ReceiptProcessingMode>("historical");
 
   const pickFromGallery = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -107,20 +112,40 @@ export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenP
     }
   };
 
-  const addToInventory = () => {
+  const addToInventory = async () => {
     if (!extractedData) return;
     
-    // TODO: Navigate to add product screen with pre-filled data
+    const modeText = processingMode === "historical" 
+      ? "This will add price history records but NOT add quantities to your current stock."
+      : "This will add items to your current stock inventory.";
+    
     Alert.alert(
-      "Add to Inventory",
-      `${extractedData.items.length} item(s) will be added to inventory. This feature will be fully connected soon.`,
+      processingMode === "historical" ? "Add Historical Data" : "Add to Current Stock",
+      `${extractedData.items.length} item(s) will be processed.\n\n${modeText}`,
       [
         { text: "Cancel", style: "cancel" },
         { 
           text: "Continue", 
-          onPress: () => {
-            // Navigate back to inventory
-            navigation.goBack();
+          onPress: async () => {
+            setIsAddingToInventory(true);
+            try {
+              const result = await processReceiptData(extractedData, processingMode);
+              
+              const stockMessage = processingMode === "current_stock" 
+                ? `\nStock added: ${result.stockAdded} units`
+                : "";
+              
+              Alert.alert(
+                "Success",
+                `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}`,
+                [{ text: "OK", onPress: () => navigation.goBack() }]
+              );
+            } catch (error) {
+              console.error("Error processing receipt:", error);
+              Alert.alert("Error", "Failed to process receipt. Please try again.");
+            } finally {
+              setIsAddingToInventory(false);
+            }
           }
         },
       ]
@@ -240,6 +265,57 @@ export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenP
                   </ThemedText>
                 </View>
 
+                <View style={[styles.modeToggleContainer, { backgroundColor: theme.backgroundSecondary }]}>
+                  <View style={styles.modeToggleHeader}>
+                    <Feather name="settings" size={18} color={Colors.primary.main} />
+                    <ThemedText type="body" style={{ fontWeight: "600" }}>
+                      Processing Mode
+                    </ThemedText>
+                  </View>
+                  <Pressable 
+                    style={[
+                      styles.modeOption, 
+                      processingMode === "historical" && { backgroundColor: Colors.primary.light }
+                    ]}
+                    onPress={() => setProcessingMode("historical")}
+                  >
+                    <View style={styles.modeOptionContent}>
+                      <Feather 
+                        name={processingMode === "historical" ? "check-circle" : "circle"} 
+                        size={20} 
+                        color={processingMode === "historical" ? Colors.primary.main : theme.textSecondary} 
+                      />
+                      <View style={{ flex: 1 }}>
+                        <ThemedText type="body" style={{ fontWeight: "600" }}>Historical Data Only</ThemedText>
+                        <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                          Records prices & suppliers without adding to stock
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </Pressable>
+                  <Pressable 
+                    style={[
+                      styles.modeOption, 
+                      processingMode === "current_stock" && { backgroundColor: Colors.primary.light }
+                    ]}
+                    onPress={() => setProcessingMode("current_stock")}
+                  >
+                    <View style={styles.modeOptionContent}>
+                      <Feather 
+                        name={processingMode === "current_stock" ? "check-circle" : "circle"} 
+                        size={20} 
+                        color={processingMode === "current_stock" ? Colors.primary.main : theme.textSecondary} 
+                      />
+                      <View style={{ flex: 1 }}>
+                        <ThemedText type="body" style={{ fontWeight: "600" }}>Add to Current Stock</ThemedText>
+                        <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                          Records prices and adds quantities to inventory
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+
                 {extractedData.supplierName && (
                   <View style={styles.resultRow}>
                     <ThemedText type="caption" style={{ color: theme.textSecondary }}>Supplier</ThemedText>
@@ -293,17 +369,25 @@ export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenP
                   <Pressable
                     onPress={clearSelection}
                     style={[styles.actionButton, { backgroundColor: theme.backgroundSecondary }]}
+                    disabled={isAddingToInventory}
                   >
                     <ThemedText type="body">Cancel</ThemedText>
                   </Pressable>
                   <Pressable
                     onPress={addToInventory}
-                    style={[styles.actionButton, styles.primaryButton, { backgroundColor: Colors.primary.main }]}
+                    style={[styles.actionButton, styles.primaryButton, { backgroundColor: Colors.primary.main, opacity: isAddingToInventory ? 0.7 : 1 }]}
+                    disabled={isAddingToInventory}
                   >
-                    <Feather name="plus" size={18} color="#FFFFFF" />
-                    <ThemedText type="body" style={{ color: "#FFFFFF", fontWeight: "600" }}>
-                      Add to Inventory
-                    </ThemedText>
+                    {isAddingToInventory ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Feather name="plus" size={18} color="#FFFFFF" />
+                        <ThemedText type="body" style={{ color: "#FFFFFF", fontWeight: "600" }}>
+                          {processingMode === "historical" ? "Add Price History" : "Add to Inventory"}
+                        </ThemedText>
+                      </>
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -472,5 +556,26 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 2,
+  },
+  modeToggleContainer: {
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  modeToggleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  modeOption: {
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  modeOptionContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
   },
 });

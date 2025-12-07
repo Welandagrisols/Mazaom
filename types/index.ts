@@ -150,3 +150,26 @@ export interface ExtractedItem {
   matchedProductId?: string;
   confidence: "high" | "medium" | "low";
 }
+
+export type ReceiptProcessingMode = "historical" | "current_stock";
+
+export interface PurchasePriceRecord {
+  id: string;
+  productId: string;
+  supplierId?: string;
+  supplierName?: string;
+  purchaseDate: string;
+  unitCost: number;
+  quantity: number;
+  receiptNumber?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ProcessedReceiptResult {
+  newProductsCreated: number;
+  existingProductsUpdated: number;
+  priceRecordsAdded: number;
+  stockAdded: number;
+  mode: ReceiptProcessingMode;
+}
