@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import InventoryScreen from "@/screens/InventoryScreen";
 import ProductDetailScreen from "@/screens/ProductDetailScreen";
 import AddProductScreen from "@/screens/AddProductScreen";
+import ReceiptUploadScreen from "@/screens/ReceiptUploadScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
 
@@ -10,6 +11,7 @@ export type InventoryStackParamList = {
   Inventory: undefined;
   ProductDetail: { productId: string };
   AddProduct: undefined;
+  ReceiptUpload: undefined;
 };
 
 const Stack = createNativeStackNavigator<InventoryStackParamList>();
@@ -42,6 +44,14 @@ export default function InventoryStackNavigator() {
         component={AddProductScreen}
         options={{
           headerTitle: "Add Product",
+          presentation: "modal",
+        }}
+      />
+      <Stack.Screen
+        name="ReceiptUpload"
+        component={ReceiptUploadScreen}
+        options={{
+          headerTitle: "Upload Receipt",
           presentation: "modal",
         }}
       />

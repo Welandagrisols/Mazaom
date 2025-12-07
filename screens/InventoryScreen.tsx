@@ -374,6 +374,23 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
       </View>
 
       <Pressable
+        onPress={() => navigation.navigate("ReceiptUpload")}
+        style={({ pressed }) => [
+          styles.fab,
+          styles.fabSecondary,
+          {
+            backgroundColor: theme.surface,
+            borderWidth: 2,
+            borderColor: Colors.primary.main,
+            bottom: tabBarHeight + Spacing.xl + 70,
+            opacity: pressed ? 0.9 : 1,
+          },
+        ]}
+      >
+        <Feather name="camera" size={24} color={Colors.primary.main} />
+      </Pressable>
+
+      <Pressable
         onPress={() => navigation.navigate("AddProduct")}
         style={({ pressed }) => [
           styles.fab,
@@ -529,5 +546,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  fabSecondary: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
 });
