@@ -1,10 +1,29 @@
 import OpenAI from 'openai';
 import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+const getApiKey = (): string => {
+  return process.env.OPENAI_API_KEY || 
+         Constants.expoConfig?.extra?.openaiApiKey || 
+         (typeof window !== 'undefined' && (window as unknown as Record<string, string>).OPENAI_API_KEY) ||
+         '';
+};
+
+let _openai: OpenAI | null = null;
+
+const getOpenAI = (): OpenAI => {
+  if (!_openai) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+    _openai = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    });
+  }
+  return _openai;
+};
 
 export interface ExtractedItem {
   name: string;
@@ -38,7 +57,7 @@ export async function extractReceiptData(imageUri: string): Promise<ExtractedRec
       base64Image = `data:${mimeType};base64,${base64}`;
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
@@ -119,5 +138,5 @@ If you cannot read certain values, use reasonable defaults or null. Prices shoul
 }
 
 export function isOpenAIConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
+  return Boolean(getApiKey());
 }
