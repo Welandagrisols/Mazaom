@@ -494,6 +494,39 @@ export const ReceiptStorage = {
     receipts.unshift(receipt);
     return setItem(STORAGE_KEYS.RECEIPTS, receipts);
   },
+  async update(receipt: ScannedReceipt): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('scanned_receipts')
+          .update(mapReceiptToDb(receipt))
+          .eq('id', receipt.id);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error updating receipt in Supabase:', error);
+      }
+    }
+    const receipts = await this.getAll();
+    const index = receipts.findIndex((r) => r.id === receipt.id);
+    if (index !== -1) {
+      receipts[index] = receipt;
+      return setItem(STORAGE_KEYS.RECEIPTS, receipts);
+    }
+    return false;
+  },
+  async delete(id: string): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from('scanned_receipts').delete().eq('id', id);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error deleting receipt from Supabase:', error);
+      }
+    }
+    const receipts = await this.getAll();
+    const filtered = receipts.filter((r) => r.id !== id);
+    return setItem(STORAGE_KEYS.RECEIPTS, filtered);
+  },
 };
 
 export const SettingsStorage = {

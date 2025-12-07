@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -23,29 +24,53 @@ import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { MoreStackParamList } from "@/navigation/MoreStackNavigator";
+import { ReceiptStorage, generateId } from "@/utils/storage";
+import { ScannedReceipt } from "@/types";
 
 type ReceiptsScreenProps = {
   navigation: NativeStackNavigationProp<MoreStackParamList, "Receipts">;
 };
 
-interface UploadedReceipt {
-  id: string;
-  name: string;
-  type: "pdf" | "image";
-  uri: string;
-  uploadedAt: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  size?: number;
-}
-
 export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const [receipts, setReceipts] = useState<UploadedReceipt[]>([]);
+  const [receipts, setReceipts] = useState<ScannedReceipt[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const generateId = () => `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  useEffect(() => {
+    loadReceipts();
+  }, []);
+
+  const loadReceipts = async () => {
+    try {
+      setIsLoading(true);
+      const storedReceipts = await ReceiptStorage.getAll();
+      setReceipts(storedReceipts);
+    } catch (error) {
+      console.error("Error loading receipts:", error);
+      Alert.alert("Error", "Failed to load receipts from database.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createScannedReceipt = (uri: string, name: string): ScannedReceipt => {
+    return {
+      id: generateId(),
+      receiptDate: new Date().toISOString().split("T")[0],
+      imageUrl: uri,
+      ocrMethod: "google_vision",
+      confidenceScore: 0,
+      status: "pending",
+      extractedData: {
+        items: [],
+        supplierName: name,
+      },
+      createdAt: new Date().toISOString(),
+    };
+  };
 
   const pickPDFDocuments = useCallback(async () => {
     try {
@@ -57,20 +82,18 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newReceipts: UploadedReceipt[] = result.assets.map((asset) => ({
-          id: generateId(),
-          name: asset.name,
-          type: asset.mimeType?.includes("pdf") ? "pdf" : "image",
-          uri: asset.uri,
-          uploadedAt: new Date().toISOString(),
-          status: "pending" as const,
-          size: asset.size,
-        }));
+        const newReceipts: ScannedReceipt[] = [];
+
+        for (const asset of result.assets) {
+          const receipt = createScannedReceipt(asset.uri, asset.name);
+          await ReceiptStorage.add(receipt);
+          newReceipts.push(receipt);
+        }
 
         setReceipts((prev) => [...newReceipts, ...prev]);
         Alert.alert(
           "Success",
-          `${newReceipts.length} file(s) uploaded successfully! Ready for processing.`
+          `${newReceipts.length} file(s) uploaded and saved to database! Ready for processing.`
         );
       }
     } catch (error) {
@@ -102,17 +125,12 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const newReceipt: UploadedReceipt = {
-          id: generateId(),
-          name: `Receipt_${new Date().toISOString().slice(0, 10)}_${Date.now()}.jpg`,
-          type: "image",
-          uri: asset.uri,
-          uploadedAt: new Date().toISOString(),
-          status: "pending",
-        };
+        const receiptName = `Receipt_${new Date().toISOString().slice(0, 10)}_${Date.now()}.jpg`;
+        const newReceipt = createScannedReceipt(asset.uri, receiptName);
 
+        await ReceiptStorage.add(newReceipt);
         setReceipts((prev) => [newReceipt, ...prev]);
-        Alert.alert("Success", "Receipt photo captured! Ready for processing.");
+        Alert.alert("Success", "Receipt photo captured and saved to database! Ready for processing.");
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -140,19 +158,19 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newReceipts: UploadedReceipt[] = result.assets.map((asset, index) => ({
-          id: generateId(),
-          name: asset.fileName || `Receipt_${Date.now()}_${index}.jpg`,
-          type: "image" as const,
-          uri: asset.uri,
-          uploadedAt: new Date().toISOString(),
-          status: "pending" as const,
-        }));
+        const newReceipts: ScannedReceipt[] = [];
+
+        for (const asset of result.assets) {
+          const receiptName = asset.fileName || `Receipt_${Date.now()}.jpg`;
+          const receipt = createScannedReceipt(asset.uri, receiptName);
+          await ReceiptStorage.add(receipt);
+          newReceipts.push(receipt);
+        }
 
         setReceipts((prev) => [...newReceipts, ...prev]);
         Alert.alert(
           "Success",
-          `${newReceipts.length} image(s) selected! Ready for processing.`
+          `${newReceipts.length} image(s) saved to database! Ready for processing.`
         );
       }
     } catch (error) {
@@ -170,21 +188,19 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
     setReceipts((prev) =>
       prev.map((r) =>
-        r.status === "pending" ? { ...r, status: "processing" as const } : r
+        r.status === "pending" ? { ...r, status: "reviewed" as const } : r
       )
     );
 
-    setTimeout(() => {
-      setReceipts((prev) =>
-        prev.map((r) =>
-          r.status === "processing" ? { ...r, status: "completed" as const } : r
-        )
-      );
-      Alert.alert(
-        "Processing Complete",
-        `${pendingReceipts.length} receipt(s) have been processed.`
-      );
-    }, 2000);
+    for (const receipt of pendingReceipts) {
+      const updatedReceipt = { ...receipt, status: "reviewed" as const };
+      await ReceiptStorage.update(updatedReceipt);
+    }
+
+    Alert.alert(
+      "Processing Complete",
+      `${pendingReceipts.length} receipt(s) have been marked as reviewed.`
+    );
   }, [receipts]);
 
   const deleteReceipt = useCallback((id: string) => {
@@ -193,58 +209,54 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => setReceipts((prev) => prev.filter((r) => r.id !== id)),
+        onPress: async () => {
+          try {
+            await ReceiptStorage.delete(id);
+            setReceipts((prev) => prev.filter((r) => r.id !== id));
+            Alert.alert("Success", "Receipt deleted successfully.");
+          } catch (error) {
+            console.error("Error deleting receipt:", error);
+            Alert.alert("Error", "Failed to delete receipt.");
+          }
+        },
       },
     ]);
   }, []);
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const getStatusColor = (status: UploadedReceipt["status"]) => {
+  const getStatusColor = (status: ScannedReceipt["status"]) => {
     switch (status) {
       case "pending":
         return Colors.accent.warning;
-      case "processing":
+      case "reviewed":
         return Colors.primary.main;
-      case "completed":
+      case "confirmed":
         return Colors.accent.success;
-      case "failed":
-        return Colors.accent.error;
       default:
         return theme.textSecondary;
     }
   };
 
-  const renderReceiptItem = ({ item }: { item: UploadedReceipt }) => (
+  const renderReceiptItem = ({ item }: { item: ScannedReceipt }) => (
     <Card style={styles.receiptCard}>
       <View style={styles.receiptContent}>
         <View style={styles.receiptIcon}>
-          {item.type === "pdf" ? (
-            <Feather name="file-text" size={28} color={Colors.accent.error} />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.thumbnailImage} />
           ) : (
-            item.uri ? (
-              <Image source={{ uri: item.uri }} style={styles.thumbnailImage} />
-            ) : (
-              <Feather name="image" size={28} color={Colors.primary.main} />
-            )
+            <Feather name="file-text" size={28} color={Colors.primary.main} />
           )}
         </View>
         <View style={styles.receiptInfo}>
           <ThemedText type="body" numberOfLines={1} style={styles.receiptName}>
-            {item.name}
+            {item.extractedData?.supplierName || `Receipt ${item.id.slice(0, 8)}`}
           </ThemedText>
           <View style={styles.receiptMeta}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {new Date(item.uploadedAt).toLocaleDateString()}
+              {new Date(item.receiptDate).toLocaleDateString()}
             </ThemedText>
-            {item.size && (
+            {item.confidenceScore > 0 && (
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {" "} - {formatFileSize(item.size)}
+                {" "} - {Math.round(item.confidenceScore * 100)}% confidence
               </ThemedText>
             )}
           </View>
@@ -270,6 +282,17 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
   const pendingCount = receipts.filter((r) => r.status === "pending").length;
 
+  if (isLoading) {
+    return (
+      <ThemedView style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primary.main} />
+        <ThemedText type="body" style={{ marginTop: Spacing.md }}>
+          Loading receipts from database...
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -285,7 +308,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
             Upload Receipts
           </ThemedText>
           <ThemedText type="body" style={{ color: theme.textSecondary }}>
-            Capture or upload receipts for easy processing
+            Capture or upload receipts - saved to Supabase database
           </ThemedText>
         </View>
 
@@ -350,15 +373,18 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         <View style={styles.receiptsSection}>
           <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">
-              Uploaded Receipts ({receipts.length})
+              Database Receipts ({receipts.length})
             </ThemedText>
+            <TouchableOpacity onPress={loadReceipts} style={styles.refreshButton}>
+              <Feather name="refresh-cw" size={20} color={Colors.primary.main} />
+            </TouchableOpacity>
           </View>
 
           {receipts.length === 0 ? (
             <EmptyState
               icon="file-text"
               title="No Receipts Yet"
-              message="Take a photo or upload PDF files to get started"
+              message="Take a photo or upload PDF files to get started. All receipts are saved to your Supabase database."
             />
           ) : (
             <FlatList
@@ -378,6 +404,10 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollView: {
     flex: 1,
@@ -432,6 +462,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: Spacing.md,
+  },
+  refreshButton: {
+    padding: Spacing.sm,
   },
   receiptCard: {
     padding: Spacing.md,
