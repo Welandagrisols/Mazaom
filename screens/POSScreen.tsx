@@ -9,7 +9,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { SearchBar } from "@/components/SearchBar";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductListItem } from "@/components/ProductListItem";
 import { CartItemComponent } from "@/components/CartItem";
 import { CategoryChip } from "@/components/CategoryChip";
 import { EmptyState } from "@/components/EmptyState";
@@ -60,9 +60,6 @@ export default function POSScreen({ navigation }: POSScreenProps) {
     return result;
   }, [products, selectedCategory, searchQuery]);
 
-  const quickProducts = useMemo(() => {
-    return products.filter((p) => p.active).slice(0, 8);
-  }, [products]);
 
   const bulkSaleProducts = useMemo(() => {
     return products.filter((p) => p.active && p.isBulkItem);
@@ -158,49 +155,34 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
         <View style={styles.mainContent}>
           <View style={styles.productsSection}>
-            {!searchQuery && !selectedCategory ? (
-              <View style={styles.quickProducts}>
-                <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-                  Quick Access
-                </ThemedText>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {quickProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      stock={getProductStock(product.id)}
-                      compact
-                      onPress={() => handleProductPress(product)}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-              {selectedCategory
-                ? CATEGORIES.find((c) => c.id === selectedCategory)?.name
-                : "All Products"}{" "}
-              ({filteredProducts.length})
-            </ThemedText>
+            <View style={styles.listHeader}>
+              <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary, flex: 1 }]}>
+                {selectedCategory
+                  ? CATEGORIES.find((c) => c.id === selectedCategory)?.name
+                  : "All Products"}{" "}
+                ({filteredProducts.length})
+              </ThemedText>
+              <ThemedText type="caption" style={[styles.columnHeader, { color: theme.textSecondary }]}>
+                Stock
+              </ThemedText>
+              <ThemedText type="caption" style={[styles.columnHeaderPrice, { color: theme.textSecondary }]}>
+                Price
+              </ThemedText>
+            </View>
 
             {filteredProducts.length > 0 ? (
               <FlatList
                 data={filteredProducts}
                 keyExtractor={(item) => item.id}
-                numColumns={2}
                 renderItem={({ item }) => (
-                  <ProductCard
+                  <ProductListItem
                     product={item}
                     stock={getProductStock(item.id)}
                     onPress={() => handleProductPress(item)}
-                    onAddToCart={() => handleProductPress(item)}
-                    gridView
                   />
                 )}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.productsList}
-                columnWrapperStyle={styles.productRow}
               />
             ) : (
               <EmptyState
@@ -568,15 +550,27 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    marginBottom: Spacing.sm,
     fontWeight: "600",
+  },
+  listHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  columnHeader: {
+    width: 80,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  columnHeaderPrice: {
+    width: 90,
+    textAlign: "right",
+    fontWeight: "600",
+    marginRight: Spacing.md + 36,
   },
   productsList: {
     paddingBottom: 100,
-  },
-  productRow: {
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
   },
   cartSection: {
     width: 280,
