@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Product, Customer, Supplier, Transaction, InventoryBatch, CartItem, User, PurchasePriceRecord, ReceiptProcessingMode, ProcessedReceiptResult } from "@/types";
+import { Product, Customer, Supplier, Transaction, InventoryBatch, CartItem, User, PurchasePriceRecord, ReceiptProcessingMode, ProcessedReceiptResult, CreditTransaction } from "@/types";
 import {
   ProductStorage,
   CustomerStorage,
@@ -8,6 +8,7 @@ import {
   BatchStorage,
   UserStorage,
   PriceHistoryStorage,
+  CreditTransactionStorage,
   generateId,
   generateTransactionNumber,
 } from "@/utils/storage";
@@ -23,6 +24,7 @@ interface AppContextType {
   cart: CartItem[];
   user: User | null;
   priceHistory: PurchasePriceRecord[];
+  creditTransactions: CreditTransaction[];
   isLoading: boolean;
   loadData: () => Promise<void>;
   addToCart: (product: Product, quantity?: number, fractionalDetails?: { weight: number; totalPrice: number }) => void;
@@ -35,6 +37,7 @@ interface AppContextType {
   addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Promise<boolean>;
   updateProduct: (product: Product) => Promise<boolean>;
   addCustomer: (customer: Omit<Customer, "id">) => Promise<boolean>;
+  updateCustomer: (customer: Customer) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<boolean>;
   getProductStock: (productId: string) => number;
   getTodaySales: () => number;
@@ -43,6 +46,10 @@ interface AppContextType {
   searchProducts: (query: string) => Product[];
   processReceiptData: (data: ExtractedReceiptData, mode: ReceiptProcessingMode) => Promise<ProcessedReceiptResult>;
   getPriceHistory: (productId: string) => PurchasePriceRecord[];
+  getCustomerCreditHistory: (customerId: string) => CreditTransaction[];
+  recordCreditPayment: (customerId: string, amount: number, paymentMethod: string, referenceNumber?: string, notes?: string) => Promise<boolean>;
+  getTotalOutstandingDebt: () => number;
+  getCustomersWithDebt: () => Customer[];
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -58,6 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [priceHistory, setPriceHistory] = useState<PurchasePriceRecord[]>([]);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -70,6 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const loadedTransactions = await TransactionStorage.getAll();
       const loadedUser = await UserStorage.get();
       const loadedPriceHistory = await PriceHistoryStorage.getAll();
+      const loadedCreditTransactions = await CreditTransactionStorage.getAll();
 
       if (loadedProducts.length === 0) {
         loadedProducts = SAMPLE_PRODUCTS;
@@ -103,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBatches(loadedBatches);
       setUser(loadedUser);
       setPriceHistory(loadedPriceHistory);
+      setCreditTransactions(loadedCreditTransactions);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {

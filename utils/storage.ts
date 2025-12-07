@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import { decode } from "base64-arraybuffer";
 import { supabase, isSupabaseConfigured, getSupabaseUrl } from "./supabase";
-import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt, PurchasePriceRecord } from "@/types";
+import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt, PurchasePriceRecord, CreditTransaction } from "@/types";
 
 const STORAGE_KEYS = {
   PRODUCTS: "@agrovet_products",
@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   CART: "@agrovet_cart",
   SETTINGS: "@agrovet_settings",
   PRICE_HISTORY: "@agrovet_price_history",
+  CREDIT_TRANSACTIONS: "@agrovet_credit_transactions",
 };
 
 async function getItem<T>(key: string): Promise<T | null> {
@@ -563,6 +564,48 @@ export const PriceHistoryStorage = {
   },
 };
 
+export const CreditTransactionStorage = {
+  async getAll(): Promise<CreditTransaction[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('credit_transactions')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const transactions = data.map(mapDbToCreditTransaction);
+          await setItem(STORAGE_KEYS.CREDIT_TRANSACTIONS, transactions);
+          return transactions;
+        }
+      } catch (error) {
+        console.error('Error fetching credit transactions from Supabase:', error);
+      }
+    }
+    return (await getItem<CreditTransaction[]>(STORAGE_KEYS.CREDIT_TRANSACTIONS)) || [];
+  },
+  async save(transactions: CreditTransaction[]): Promise<boolean> {
+    return setItem(STORAGE_KEYS.CREDIT_TRANSACTIONS, transactions);
+  },
+  async add(transaction: CreditTransaction): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from('credit_transactions').insert(mapCreditTransactionToDb(transaction));
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error adding credit transaction to Supabase:', error);
+      }
+    }
+    const transactions = await this.getAll();
+    transactions.unshift(transaction);
+    return setItem(STORAGE_KEYS.CREDIT_TRANSACTIONS, transactions);
+  },
+  async getByCustomerId(customerId: string): Promise<CreditTransaction[]> {
+    const transactions = await this.getAll();
+    return transactions.filter((t) => t.customerId === customerId);
+  },
+};
+
 export const clearAllData = async (): Promise<boolean> => {
   try {
     await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
@@ -847,5 +890,39 @@ function mapDbToReceipt(data: Record<string, unknown>): ScannedReceipt {
     status: data.status as ScannedReceipt['status'],
     extractedData: data.extracted_data as ScannedReceipt['extractedData'],
     createdAt: data.created_at as string,
+  };
+}
+
+function mapCreditTransactionToDb(transaction: CreditTransaction) {
+  return {
+    id: transaction.id,
+    customer_id: transaction.customerId,
+    transaction_id: transaction.transactionId || null,
+    type: transaction.type,
+    amount: transaction.amount,
+    balance_before: transaction.balanceBefore,
+    balance_after: transaction.balanceAfter,
+    payment_method: transaction.paymentMethod || null,
+    reference_number: transaction.referenceNumber || null,
+    notes: transaction.notes || null,
+    created_at: transaction.createdAt,
+    created_by: transaction.createdBy || null,
+  };
+}
+
+function mapDbToCreditTransaction(data: Record<string, unknown>): CreditTransaction {
+  return {
+    id: data.id as string,
+    customerId: data.customer_id as string,
+    transactionId: data.transaction_id as string | undefined,
+    type: data.type as CreditTransaction['type'],
+    amount: data.amount as number,
+    balanceBefore: data.balance_before as number,
+    balanceAfter: data.balance_after as number,
+    paymentMethod: data.payment_method as string | undefined,
+    referenceNumber: data.reference_number as string | undefined,
+    notes: data.notes as string | undefined,
+    createdAt: data.created_at as string,
+    createdBy: data.created_by as string | undefined,
   };
 }

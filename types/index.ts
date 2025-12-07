@@ -173,3 +173,18 @@ export interface ProcessedReceiptResult {
   stockAdded: number;
   mode: ReceiptProcessingMode;
 }
+
+export interface CreditTransaction {
+  id: string;
+  customerId: string;
+  transactionId?: string;
+  type: "credit_sale" | "payment" | "adjustment";
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  notes?: string;
+  createdAt: string;
+  createdBy?: string;
+}
