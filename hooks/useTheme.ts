@@ -1,11 +1,11 @@
 import { Colors } from "@/constants/theme";
 
 export function useTheme() {
-  const theme = Colors.light;
+  const theme = Colors.dark;
 
   return {
     theme,
-    isDark: false,
+    isDark: true,
     colors: Colors,
   };
 }
