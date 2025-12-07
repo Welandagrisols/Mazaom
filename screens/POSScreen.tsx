@@ -62,7 +62,7 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
 
   const bulkSaleProducts = useMemo(() => {
-    return products.filter((p) => p.active && p.isBulkItem);
+    return products.filter((p) => p.active && (p.itemType === 'bulk' || p.isBulkItem));
   }, [products]);
 
   const handleBarcodePress = useCallback(() => {
@@ -71,7 +71,8 @@ export default function POSScreen({ navigation }: POSScreenProps) {
 
   const handleProductPress = useCallback((product: any) => {
     setSelectedProduct(product);
-    if (product.isBulkItem) {
+    const isBulkProduct = product.itemType === 'bulk' || product.isBulkItem;
+    if (isBulkProduct) {
       setShowBulkSaleModal(true);
     } else {
       setQuantity("1");
@@ -427,10 +428,10 @@ export default function POSScreen({ navigation }: POSScreenProps) {
               <View style={styles.emptyBulkProducts}>
                 <Feather name="package" size={40} color={theme.textSecondary} />
                 <ThemedText type="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
-                  No bulk sale products available
+                  No bulk/divisible products available
                 </ThemedText>
                 <ThemedText type="caption" style={{ color: theme.textSecondary, textAlign: "center", marginTop: 4 }}>
-                  Add products marked as "Bulk Item" in inventory
+                  Add products with "Bulk/Divisible" type in inventory
                 </ThemedText>
               </View>
             )}

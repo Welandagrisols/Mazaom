@@ -1,5 +1,7 @@
 import { CategoryId, UnitId, PaymentMethodId } from "@/constants/categories";
 
+export type ItemType = 'bulk' | 'unit';
+
 export interface Product {
   id: string;
   name: string;
@@ -16,11 +18,14 @@ export interface Product {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  // Bulk sale properties (for items sold by weight from larger packages)
-  isBulkItem?: boolean;
+  // Item type: 'bulk' for divisible items sold by weight/volume, 'unit' for whole items only
+  itemType: ItemType;
+  // Bulk sale properties (only used when itemType is 'bulk')
+  isBulkItem?: boolean; // Deprecated - use itemType instead
   packageWeight?: number; // Total weight of full package (e.g., 70kg bag)
-  pricePerKg?: number; // Retail price per kg
-  costPerKg?: number; // Cost price per kg
+  pricePerKg?: number; // Retail price per kg/liter
+  costPerKg?: number; // Cost price per kg/liter
+  bulkUnit?: string; // Unit for bulk sales (kg, liters, etc.)
 }
 
 export interface InventoryBatch {

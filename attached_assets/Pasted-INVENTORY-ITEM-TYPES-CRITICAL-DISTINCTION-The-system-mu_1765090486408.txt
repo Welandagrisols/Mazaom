@@ -1,0 +1,53 @@
+INVENTORY ITEM TYPES - CRITICAL DISTINCTION:
+
+The system must support TWO types of inventory items:
+
+TYPE 1: BULK/DIVISIBLE ITEMS (can be sold partially by weight/volume)
+Examples: 
+- Dairy meal in large bags (70kg bag, sell by kg)
+- Sugar in sacks (sell by kg)
+- Flour in bags (sell by kg)
+- Cooking oil in large containers (sell by liters)
+- Any item where you sell portions of a larger container
+
+Characteristics:
+- Have a total quantity in the container (e.g., 70kg bag, 20L jerrycan)
+- Can be sold in any amount (1kg, 3.5kg, 2L, etc.)
+- Inventory decreases by the exact weight/volume sold
+- Track remaining quantity precisely (decimal values like 45.7kg)
+- Mark these as "Bulk/Divisible" in product setup
+
+TYPE 2: UNIT/INDIVISIBLE ITEMS (sold only as complete units)
+Examples:
+- Medicine in cartons/boxes (sell whole cartons only)
+- Bottled drinks (sell whole bottles only)
+- Canned goods (sell whole cans only)
+- Sachets/packets (sell whole sachets only, never half a sachet)
+- Boxes of anything (sell whole boxes)
+- Individual items like phones, tools, etc.
+
+Characteristics:
+- Counted in whole units only (1, 2, 3... never 1.5)
+- Cannot be sold partially - must sell complete unit
+- Inventory decreases by whole numbers only
+- Track as integer quantities
+- Mark these as "Unit/Countable" in product setup
+
+IMPLEMENTATION REQUIREMENTS:
+1. When creating/editing a product, add a required field "Item Type":
+   - "Bulk/Divisible" → enables weight/volume-based selling
+   - "Unit/Countable" → only whole unit quantities allowed
+
+2. In POS screen:
+   - BULK items: show bulk sale option with weight/price calculator
+   - UNIT items: only show quantity selector for whole numbers - NO bulk option
+
+3. Inventory tracking:
+   - BULK items: allow decimal quantities (62.5kg remaining)
+   - UNIT items: whole numbers only (28 bottles remaining)
+
+4. Prevent errors:
+   - Don't allow bulk selling for unit items (can't sell 0.5 sachets)
+   - Don't allow fractional inventory for unit items
+
+This ensures each product type is handled correctly based on its nature.

@@ -69,6 +69,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await ProductStorage.save(loadedProducts);
       }
 
+      loadedProducts = loadedProducts.map(p => ({
+        ...p,
+        itemType: p.itemType || (p.isBulkItem ? 'bulk' : 'unit'),
+      }));
+
       if (loadedCustomers.length === 0) {
         loadedCustomers = SAMPLE_CUSTOMERS;
         await CustomerStorage.save(loadedCustomers);
@@ -219,7 +224,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const productBatches = batches.filter(
             (b) => b.productId === item.product.id
           );
-          let remainingQty = item.quantity;
+          let remainingQty = item.isFractionalSale && item.actualWeight 
+            ? item.actualWeight 
+            : item.quantity;
           for (const batch of productBatches) {
             if (remainingQty <= 0) break;
             const deduct = Math.min(batch.quantity, remainingQty);
@@ -244,6 +251,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ): Promise<boolean> => {
       const product: Product = {
         ...productData,
+        itemType: productData.itemType || 'unit',
         id: generateId(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
