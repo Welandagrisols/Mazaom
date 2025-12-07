@@ -22,7 +22,9 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { user, customers, suppliers, transactions } = useApp();
+  const { user, customers, suppliers, transactions, getTotalOutstandingDebt, getCustomersWithDebt } = useApp();
+  const customersWithDebt = getCustomersWithDebt();
+  const totalDebt = getTotalOutstandingDebt();
 
   return (
     <ThemedView style={styles.container}>
@@ -61,6 +63,14 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
           iconColor={Colors.primary.main}
           badge={customers.length}
           onPress={() => navigation.navigate("Customers")}
+        />
+        <MenuListItem
+          title="Customer Credits"
+          subtitle="Manage debts and payments"
+          icon="credit-card"
+          iconColor={Colors.accent.error}
+          badge={customersWithDebt.length > 0 ? customersWithDebt.length : undefined}
+          onPress={() => navigation.navigate("CustomerCredits")}
         />
         <MenuListItem
           title="Suppliers"

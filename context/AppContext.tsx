@@ -255,6 +255,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await BatchStorage.save(batches);
         setBatches([...batches]);
         
+        if (paymentMethod === "credit" && customer) {
+          const creditTransaction: CreditTransaction = {
+            id: generateId(),
+            customerId: customer.id,
+            transactionId: transaction.id,
+            type: "credit_sale",
+            amount: transaction.total,
+            balanceBefore: customer.currentBalance,
+            balanceAfter: customer.currentBalance + transaction.total,
+            notes: `Sale: ${transaction.transactionNumber}`,
+            createdAt: new Date().toISOString(),
+            createdBy: user?.id,
+          };
+          await CreditTransactionStorage.add(creditTransaction);
+          setCreditTransactions(prev => [creditTransaction, ...prev]);
+          
+          const updatedCustomer = {
+            ...customer,
+            currentBalance: customer.currentBalance + transaction.total,
+          };
+          await CustomerStorage.update(updatedCustomer);
+          setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCustomer : c));
+        }
+        
         clearCart();
         return transaction;
       }
@@ -309,6 +333,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateCustomer = useCallback(async (customer: Customer): Promise<boolean> => {
+    const success = await CustomerStorage.update(customer);
+    if (success) {
+      setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+    }
+    return success;
+  }, []);
+
   const addSupplier = useCallback(
     async (supplierData: Omit<Supplier, "id">): Promise<boolean> => {
       const supplier: Supplier = {
@@ -323,6 +355,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const getCustomerCreditHistory = useCallback((customerId: string): CreditTransaction[] => {
+    return creditTransactions.filter(t => t.customerId === customerId);
+  }, [creditTransactions]);
+
+  const recordCreditPayment = useCallback(async (
+    customerId: string,
+    amount: number,
+    paymentMethod: string,
+    referenceNumber?: string,
+    notes?: string
+  ): Promise<boolean> => {
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return false;
+
+    const creditTransaction: CreditTransaction = {
+      id: generateId(),
+      customerId,
+      type: "payment",
+      amount,
+      balanceBefore: customer.currentBalance,
+      balanceAfter: customer.currentBalance - amount,
+      paymentMethod,
+      referenceNumber,
+      notes,
+      createdAt: new Date().toISOString(),
+      createdBy: user?.id,
+    };
+
+    const success = await CreditTransactionStorage.add(creditTransaction);
+    if (success) {
+      setCreditTransactions(prev => [creditTransaction, ...prev]);
+      const updatedCustomer = { ...customer, currentBalance: customer.currentBalance - amount };
+      const customerUpdateSuccess = await CustomerStorage.update(updatedCustomer);
+      if (customerUpdateSuccess) {
+        setCustomers(prev => prev.map(c => c.id === customerId ? updatedCustomer : c));
+      }
+      return customerUpdateSuccess;
+    }
+    return success;
+  }, [customers, user]);
+
+  const getTotalOutstandingDebt = useCallback((): number => {
+    return customers.reduce((total, c) => total + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
+  }, [customers]);
+
+  const getCustomersWithDebt = useCallback((): Customer[] => {
+    return customers.filter(c => c.currentBalance > 0).sort((a, b) => b.currentBalance - a.currentBalance);
+  }, [customers]);
 
   const getProductStock = useCallback(
     (productId: string): number => {
@@ -536,6 +617,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         cart,
         user,
         priceHistory,
+        creditTransactions,
         isLoading,
         loadData,
         addToCart,
@@ -548,6 +630,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addProduct,
         updateProduct,
         addCustomer,
+        updateCustomer,
         addSupplier,
         getProductStock,
         getTodaySales,
@@ -556,6 +639,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         searchProducts,
         processReceiptData,
         getPriceHistory,
+        getCustomerCreditHistory,
+        recordCreditPayment,
+        getTotalOutstandingDebt,
+        getCustomersWithDebt,
         login,
         logout,
       }}

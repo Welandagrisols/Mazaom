@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -13,6 +13,7 @@ import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { formatCurrency } from "@/utils/format";
 import { PAYMENT_METHODS } from "@/constants/categories";
 import { POSStackParamList } from "@/navigation/POSStackNavigator";
+import { Customer } from "@/types";
 
 type CheckoutScreenProps = {
   navigation: NativeStackNavigationProp<POSStackParamList, "Checkout">;
@@ -32,6 +33,17 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   const discountAmount = parseFloat(discount) || 0;
   const total = subtotal - discountAmount;
 
+  const selectedCustomerData: Customer | undefined = useMemo(() => {
+    return selectedCustomer ? customers.find(c => c.id === selectedCustomer) : undefined;
+  }, [selectedCustomer, customers]);
+
+  const isCreditSale = selectedPayment === "credit";
+  const customerCreditLimit = selectedCustomerData?.creditLimit ?? 0;
+  const customerCurrentBalance = selectedCustomerData?.currentBalance ?? 0;
+  const newBalanceAfterSale = customerCurrentBalance + total;
+  const exceedsCreditLimit = isCreditSale && newBalanceAfterSale > customerCreditLimit;
+  const creditSaleRequiresCustomer = isCreditSale && !selectedCustomer;
+
   // Reset form when screen is focused
   useFocusEffect(
     useCallback(() => {
@@ -48,6 +60,31 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       return;
     }
 
+    if (creditSaleRequiresCustomer) {
+      Alert.alert("Customer Required", "Please select a customer for credit sales.");
+      return;
+    }
+
+    if (exceedsCreditLimit) {
+      Alert.alert(
+        "Credit Limit Exceeded",
+        `This sale would exceed ${selectedCustomerData?.name}'s credit limit of ${formatCurrency(customerCreditLimit)}. Current balance: ${formatCurrency(customerCurrentBalance)}. New balance would be: ${formatCurrency(newBalanceAfterSale)}.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Proceed Anyway", 
+            style: "destructive",
+            onPress: () => processCompleteSale()
+          }
+        ]
+      );
+      return;
+    }
+
+    await processCompleteSale();
+  }, [cart, creditSaleRequiresCustomer, exceedsCreditLimit, selectedCustomerData, customerCreditLimit, customerCurrentBalance, newBalanceAfterSale]);
+
+  const processCompleteSale = useCallback(async () => {
     setIsProcessing(true);
     try {
       const transaction = await completeSale(
@@ -236,6 +273,57 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
         </View>
       </View>
 
+      {isCreditSale && (
+        <View style={styles.section}>
+          <View style={[styles.creditInfoCard, { 
+            backgroundColor: creditSaleRequiresCustomer ? Colors.accent.warning + '15' : exceedsCreditLimit ? Colors.accent.error + '15' : Colors.accent.success + '15',
+            borderColor: creditSaleRequiresCustomer ? Colors.accent.warning : exceedsCreditLimit ? Colors.accent.error : Colors.accent.success,
+          }]}>
+            <View style={styles.creditInfoRow}>
+              <Feather 
+                name={creditSaleRequiresCustomer ? "alert-circle" : exceedsCreditLimit ? "alert-triangle" : "check-circle"} 
+                size={20} 
+                color={creditSaleRequiresCustomer ? Colors.accent.warning : exceedsCreditLimit ? Colors.accent.error : Colors.accent.success} 
+              />
+              <ThemedText type="body" style={{ marginLeft: Spacing.sm, fontWeight: '600' }}>
+                {creditSaleRequiresCustomer 
+                  ? "Select a customer for credit sale" 
+                  : exceedsCreditLimit 
+                    ? "Credit limit would be exceeded" 
+                    : "Credit sale"}
+              </ThemedText>
+            </View>
+            {selectedCustomerData && (
+              <>
+                <View style={[styles.divider, { backgroundColor: theme.divider, marginVertical: Spacing.sm }]} />
+                <View style={styles.creditInfoRow}>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>Credit Limit:</ThemedText>
+                  <ThemedText type="body" style={{ fontWeight: '600' }}>{formatCurrency(customerCreditLimit)}</ThemedText>
+                </View>
+                <View style={styles.creditInfoRow}>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>Current Balance:</ThemedText>
+                  <ThemedText type="body" style={{ fontWeight: '600', color: customerCurrentBalance > 0 ? Colors.accent.error : theme.text }}>
+                    {formatCurrency(customerCurrentBalance)}
+                  </ThemedText>
+                </View>
+                <View style={styles.creditInfoRow}>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>After This Sale:</ThemedText>
+                  <ThemedText type="body" style={{ fontWeight: '600', color: exceedsCreditLimit ? Colors.accent.error : theme.text }}>
+                    {formatCurrency(newBalanceAfterSale)}
+                  </ThemedText>
+                </View>
+                <View style={styles.creditInfoRow}>
+                  <ThemedText type="caption" style={{ color: theme.textSecondary }}>Available Credit:</ThemedText>
+                  <ThemedText type="body" style={{ fontWeight: '600', color: exceedsCreditLimit ? Colors.accent.error : Colors.accent.success }}>
+                    {formatCurrency(Math.max(0, customerCreditLimit - newBalanceAfterSale))}
+                  </ThemedText>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      )}
+
       <View style={styles.section}>
         <ThemedText type="h4" style={styles.sectionTitle}>
           Discount
@@ -367,5 +455,16 @@ const styles = StyleSheet.create({
   completeButton: {
     marginTop: Spacing.lg,
     marginBottom: Spacing.xl,
+  },
+  creditInfoCard: {
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    padding: Spacing.md,
+  },
+  creditInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
   },
 });
