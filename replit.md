@@ -47,6 +47,10 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 - **Supplier Management**: Supplier records for procurement
 - **Reporting**: Sales reports, inventory reports with analytics
 - **Receipt Management**: Upload receipts via camera capture, gallery, or batch PDF upload with AI-powered OCR
+- **Receipt Processing Modes**:
+  - **Historical Data Only**: Records purchase prices and supplier information without adding to current stock
+  - **Add to Current Stock**: Records prices and adds quantities to inventory batches
+- **Price History Tracking**: Maintains historical purchase price records per product for cost analysis
 - **Categories**: Feeds, Fertilizers, Pesticides, Herbicides, Veterinary, Seeds, Poultry, Livestock
 
 ## Development
@@ -79,6 +83,7 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
 ## Recent Changes
+- December 2024: Added receipt processing modes (Historical Data Only vs Add to Current Stock) with price history tracking
 - December 2024: Added dual inventory item types (Unit/Countable vs Bulk/Divisible) with proper tracking
 - December 2024: Added Supabase database integration for cloud persistence
 - December 2024: Added receipt management with camera capture, gallery selection, batch PDF upload, and OpenAI Vision OCR
