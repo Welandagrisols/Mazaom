@@ -117,7 +117,7 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
       showsHorizontalScrollIndicator={false}
       scrollEnabled={true}
     >
-      <View style={{ minWidth: 1000 }}>
+      <View style={{ minWidth: 850 }}>
         <View style={[styles.tableRow, styles.tableHeader, { backgroundColor: theme.surface }]}>
           <ThemedText type="caption" style={[styles.headerCell, styles.skuCell]}>
             SKU / ID
@@ -347,7 +347,7 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
               showsHorizontalScrollIndicator={true}
               scrollEnabled={true}
             >
-              <View style={{ minWidth: 1000 }}>
+              <View style={{ minWidth: 850 }}>
                 <FlatList
                   data={filteredProducts}
                   keyExtractor={(item) => item.id}

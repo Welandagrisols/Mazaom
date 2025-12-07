@@ -108,12 +108,14 @@ export default function POSScreen({ navigation }: POSScreenProps) {
     <ThemedView style={styles.container}>
       <View style={[styles.content, { paddingTop: headerHeight + Spacing.lg }]}>
         <View style={styles.searchSection}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search products or scan barcode..."
-            onBarcodePress={handleBarcodePress}
-          />
+          <View style={styles.searchBarWrapper}>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search products or scan barcode..."
+              onBarcodePress={handleBarcodePress}
+            />
+          </View>
           <Pressable
             onPress={() => setShowBulkSaleSelector(true)}
             style={({ pressed }) => [
@@ -474,8 +476,12 @@ const styles = StyleSheet.create({
   searchSection: {
     marginBottom: Spacing.md,
     flexDirection: "row",
-    gap: Spacing.md,
+    gap: Spacing.sm,
     alignItems: "center",
+  },
+  searchBarWrapper: {
+    flex: 1,
+    minWidth: 0,
   },
   bulkSaleButton: {
     flexDirection: "row",
