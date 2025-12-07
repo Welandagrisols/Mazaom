@@ -8,7 +8,8 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 - **Language**: TypeScript
 - **Navigation**: React Navigation (Bottom Tabs + Native Stack)
 - **State Management**: React Context API
-- **Storage**: AsyncStorage for local data persistence
+- **Storage**: AsyncStorage for local data + Supabase for cloud persistence
+- **Database**: Supabase (PostgreSQL)
 - **Styling**: React Native StyleSheet with custom theme
 
 ## Project Structure
@@ -65,7 +66,17 @@ This starts the Expo development server on port 5000 with web support.
 - **Port**: 5000 (configured for Replit environment)
 - **Host**: Configured to accept connections from Replit proxy
 
+## Supabase Database Setup
+To enable cloud data persistence, run the SQL script in your Supabase SQL Editor:
+1. Go to your Supabase project dashboard
+2. Navigate to SQL Editor
+3. Copy and run the contents of `scripts/supabase-schema.sql`
+4. This creates tables for products, customers, suppliers, transactions, inventory batches, and receipts
+
+The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
+
 ## Recent Changes
+- December 2024: Added Supabase database integration for cloud persistence
 - December 2024: Added receipt management with camera capture, gallery selection, and batch PDF upload
 - December 2024: Initial import and Replit environment configuration
 
