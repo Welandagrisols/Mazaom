@@ -11,28 +11,11 @@ import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
+import { extractReceiptData, isOpenAIConfigured, ExtractedReceiptData } from "@/utils/openaiVision";
 
 type ReceiptUploadScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ReceiptUpload">;
 };
-
-interface ExtractedItem {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  unit?: string;
-}
-
-interface ExtractedReceiptData {
-  supplierName?: string;
-  receiptNumber?: string;
-  date?: string;
-  items: ExtractedItem[];
-  subtotal?: number;
-  tax?: number;
-  total?: number;
-}
 
 export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenProps) {
   const { theme } = useTheme();
@@ -100,28 +83,25 @@ export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenP
   const processReceipt = async () => {
     if (!selectedImage) return;
 
+    if (!isOpenAIConfigured()) {
+      Alert.alert(
+        "API Key Required",
+        "OpenAI API key is not configured. Please add your OPENAI_API_KEY in the Secrets tab to enable AI-powered receipt scanning.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      // TODO: Integrate with OpenAI Vision API to extract receipt data
-      // For now, simulate processing with mock data
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock extracted data - will be replaced with actual AI extraction
-      const mockData: ExtractedReceiptData = {
-        supplierName: "Sample Supplier Co.",
-        receiptNumber: "RCP-2024-001",
-        date: new Date().toISOString().split("T")[0],
-        items: [
-          { name: "Product detected from receipt", quantity: 10, unitPrice: 500, totalPrice: 5000, unit: "bags" },
-        ],
-        subtotal: 5000,
-        tax: 0,
-        total: 5000,
-      };
-      
-      setExtractedData(mockData);
+      const data = await extractReceiptData(selectedImage);
+      setExtractedData(data);
     } catch (error) {
-      Alert.alert("Processing Error", "Failed to extract data from the receipt. Please try again or enter data manually.");
+      console.error("Receipt processing error:", error);
+      Alert.alert(
+        "Processing Error", 
+        "Failed to extract data from the receipt. Please ensure the image is clear and try again, or enter data manually."
+      );
     } finally {
       setIsProcessing(false);
     }
