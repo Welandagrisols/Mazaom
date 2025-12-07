@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { MoreStackParamList } from "@/navigation/MoreStackNavigator";
-import { ReceiptStorage, generateId } from "@/utils/storage";
+import { ReceiptStorage, generateId, uploadReceiptImage } from "@/utils/storage";
 import { ScannedReceipt } from "@/types";
 
 type ReceiptsScreenProps = {
@@ -85,7 +85,8 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         const newReceipts: ScannedReceipt[] = [];
 
         for (const asset of result.assets) {
-          const receipt = createScannedReceipt(asset.uri, asset.name);
+          const cloudUrl = await uploadReceiptImage(asset.uri);
+          const receipt = createScannedReceipt(cloudUrl, asset.name);
           await ReceiptStorage.add(receipt);
           newReceipts.push(receipt);
         }
@@ -93,7 +94,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         setReceipts((prev) => [...newReceipts, ...prev]);
         Alert.alert(
           "Success",
-          `${newReceipts.length} file(s) uploaded and saved to database! Ready for processing.`
+          `${newReceipts.length} file(s) uploaded to cloud! Ready for processing.`
         );
       }
     } catch (error) {
@@ -124,16 +125,21 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsUploading(true);
         const asset = result.assets[0];
         const receiptName = `Receipt_${new Date().toISOString().slice(0, 10)}_${Date.now()}.jpg`;
-        const newReceipt = createScannedReceipt(asset.uri, receiptName);
+        
+        const cloudUrl = await uploadReceiptImage(asset.uri);
+        const newReceipt = createScannedReceipt(cloudUrl, receiptName);
 
         await ReceiptStorage.add(newReceipt);
         setReceipts((prev) => [newReceipt, ...prev]);
-        Alert.alert("Success", "Receipt photo captured and saved to database! Ready for processing.");
+        setIsUploading(false);
+        Alert.alert("Success", "Receipt photo captured and uploaded to cloud! Ready for processing.");
       }
     } catch (error) {
       console.error("Error taking photo:", error);
+      setIsUploading(false);
       Alert.alert("Error", "Failed to capture photo. Please try again.");
     }
   }, []);
@@ -158,23 +164,27 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsUploading(true);
         const newReceipts: ScannedReceipt[] = [];
 
         for (const asset of result.assets) {
           const receiptName = asset.fileName || `Receipt_${Date.now()}.jpg`;
-          const receipt = createScannedReceipt(asset.uri, receiptName);
+          const cloudUrl = await uploadReceiptImage(asset.uri);
+          const receipt = createScannedReceipt(cloudUrl, receiptName);
           await ReceiptStorage.add(receipt);
           newReceipts.push(receipt);
         }
 
         setReceipts((prev) => [...newReceipts, ...prev]);
+        setIsUploading(false);
         Alert.alert(
           "Success",
-          `${newReceipts.length} image(s) saved to database! Ready for processing.`
+          `${newReceipts.length} image(s) uploaded to cloud! Ready for processing.`
         );
       }
     } catch (error) {
       console.error("Error picking images:", error);
+      setIsUploading(false);
       Alert.alert("Error", "Failed to pick images. Please try again.");
     }
   }, []);

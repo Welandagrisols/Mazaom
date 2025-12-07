@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase, isSupabaseConfigured } from "./supabase";
+import * as FileSystem from "expo-file-system";
+import { decode } from "base64-arraybuffer";
+import { supabase, isSupabaseConfigured, getSupabaseUrl } from "./supabase";
 import { Product, Customer, Supplier, Transaction, InventoryBatch, User, ScannedReceipt, PurchasePriceRecord } from "@/types";
 
 const STORAGE_KEYS = {
@@ -580,6 +582,54 @@ export const generateTransactionNumber = (): string => {
   const dateStr = date.toISOString().split("T")[0].replace(/-/g, "");
   const random = Math.random().toString(36).substr(2, 4).toUpperCase();
   return `TXN-${dateStr}-${random}`;
+};
+
+const RECEIPT_BUCKET = "receipts";
+
+export const uploadReceiptImage = async (localUri: string): Promise<string> => {
+  if (!isSupabaseConfigured()) {
+    console.log("Supabase not configured, using local URI");
+    return localUri;
+  }
+
+  try {
+    const fileExtension = localUri.split(".").pop()?.toLowerCase() || "jpg";
+    const fileName = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    const filePath = `receipts/${fileName}`;
+    
+    let contentType = "image/jpeg";
+    if (fileExtension === "png") contentType = "image/png";
+    else if (fileExtension === "pdf") contentType = "application/pdf";
+    else if (fileExtension === "gif") contentType = "image/gif";
+    else if (fileExtension === "webp") contentType = "image/webp";
+
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const arrayBuffer = decode(base64);
+
+    const { data, error } = await supabase.storage
+      .from(RECEIPT_BUCKET)
+      .upload(filePath, arrayBuffer, {
+        contentType,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Supabase storage upload error:", error);
+      return localUri;
+    }
+
+    const supabaseUrl = getSupabaseUrl();
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${RECEIPT_BUCKET}/${data.path}`;
+    
+    console.log("Receipt uploaded successfully:", publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error("Error uploading receipt to Supabase Storage:", error);
+    return localUri;
+  }
 };
 
 function mapProductToDb(product: Product) {

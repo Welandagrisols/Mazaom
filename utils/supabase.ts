@@ -51,4 +51,20 @@ export const supabase = {
     }
     return client.from(table);
   },
+  storage: {
+    from: (bucket: string) => {
+      const client = getSupabase();
+      if (!client) {
+        return {
+          upload: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
+          getPublicUrl: () => ({ data: { publicUrl: '' } }),
+          remove: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
+          list: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
+        };
+      }
+      return client.storage.from(bucket);
+    },
+  },
 };
+
+export const getSupabaseUrl = (): string => supabaseUrl;
