@@ -63,6 +63,16 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
       }
     }
   }, [route.params?.customerId, customers]);
+
+  // Keep selectedCustomer in sync with updated customer data from context
+  React.useEffect(() => {
+    if (selectedCustomer) {
+      const updatedCustomer = customers.find(c => c.id === selectedCustomer.id);
+      if (updatedCustomer && updatedCustomer.currentBalance !== selectedCustomer.currentBalance) {
+        setSelectedCustomer(updatedCustomer);
+      }
+    }
+  }, [customers, selectedCustomer]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -154,9 +164,6 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
           "Payment Recorded",
           `Payment of ${formatCurrency(amount)} has been recorded for ${selectedCustomer.name}.`
         );
-        setSelectedCustomer(prev => 
-          prev ? { ...prev, currentBalance: prev.currentBalance - amount } : null
-        );
       } else {
         Alert.alert("Error", "Failed to record payment. Please try again.");
       }
@@ -214,9 +221,6 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
                 Alert.alert(
                   "Adjustment Recorded",
                   `Balance adjusted by ${formatCurrency(amount)} for ${selectedCustomer.name}.`
-                );
-                setSelectedCustomer(prev => 
-                  prev ? { ...prev, currentBalance: prev.currentBalance + adjustmentValue } : null
                 );
               } else {
                 Alert.alert("Error", "Failed to record adjustment. Please try again.");
