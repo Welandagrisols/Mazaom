@@ -106,27 +106,26 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       );
 
       if (transaction) {
-        // Navigate back to POS screen first
-        navigation.navigate("POS");
-
-        // Then show success alert
-        Alert.alert(
-          "Sale Complete",
-          `Transaction ${transaction.transactionNumber} completed successfully!`,
-          [
-            {
-              text: "View Details",
-              onPress: () => {
-                navigation.navigate("Transactions");
-                navigation.navigate("TransactionDetail", { transactionId: transaction.id });
+        // Navigate back immediately after successful sale
+        navigation.goBack();
+        // Then show success alert after navigation
+        setTimeout(() => {
+          Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
+            [
+              {
+                text: "View Details",
+                onPress: () => {
+                  navigation.navigate("Transactions");
+                  navigation.navigate("TransactionDetail", { transactionId: transaction.id });
+                },
               },
-            },
-            {
-              text: "OK",
-              style: "cancel"
-            },
-          ]
-        );
+              {
+                text: "OK",
+                style: "cancel"
+              },
+            ]
+          );
+        }, 100); // Small delay to ensure navigation has completed
       } else {
         Alert.alert("Error", "Failed to complete sale. Please try again.");
       }
@@ -286,21 +285,21 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
 
       {isCreditSale && (
         <View style={styles.section}>
-          <View style={[styles.creditInfoCard, { 
+          <View style={[styles.creditInfoCard, {
             backgroundColor: creditSaleRequiresCustomer ? Colors.accent.warning + '15' : exceedsCreditLimit ? Colors.accent.error + '15' : Colors.accent.success + '15',
             borderColor: creditSaleRequiresCustomer ? Colors.accent.warning : exceedsCreditLimit ? Colors.accent.error : Colors.accent.success,
           }]}>
             <View style={styles.creditInfoRow}>
-              <Feather 
-                name={creditSaleRequiresCustomer ? "alert-circle" : exceedsCreditLimit ? "alert-triangle" : "check-circle"} 
-                size={20} 
-                color={creditSaleRequiresCustomer ? Colors.accent.warning : exceedsCreditLimit ? Colors.accent.error : Colors.accent.success} 
+              <Feather
+                name={creditSaleRequiresCustomer ? "alert-circle" : exceedsCreditLimit ? "alert-triangle" : "check-circle"}
+                size={20}
+                color={creditSaleRequiresCustomer ? Colors.accent.warning : exceedsCreditLimit ? Colors.accent.error : Colors.accent.success}
               />
               <ThemedText type="body" style={{ marginLeft: Spacing.sm, fontWeight: '600' }}>
-                {creditSaleRequiresCustomer 
-                  ? "Select a customer for credit sale" 
-                  : exceedsCreditLimit 
-                    ? "Credit limit would be exceeded" 
+                {creditSaleRequiresCustomer
+                  ? "Select a customer for credit sale"
+                  : exceedsCreditLimit
+                    ? "Credit limit would be exceeded"
                     : "Credit sale"}
               </ThemedText>
             </View>

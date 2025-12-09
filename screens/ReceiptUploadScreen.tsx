@@ -115,11 +115,11 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
 
   const addToInventory = async () => {
     if (!extractedData) return;
-    
+
     const modeText = processingMode === "historical" 
       ? "This will add price history records but NOT add quantities to your current stock."
       : "This will add items to your current stock inventory.";
-    
+
     Alert.alert(
       processingMode === "historical" ? "Add Historical Data" : "Add to Current Stock",
       `${extractedData.items.length} item(s) will be processed.\n\n${modeText}`,
@@ -131,15 +131,26 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
             setIsAddingToInventory(true);
             try {
               const result = await processReceiptData(extractedData, processingMode);
-              
+
               const stockMessage = processingMode === "current_stock" 
                 ? `\nStock added: ${result.stockAdded} units`
                 : "";
-              
+
               Alert.alert(
                 "Success",
                 `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}`,
-                [{ text: "OK", onPress: () => navigation.goBack() }]
+                [{ text: "OK", onPress: () => {
+                  clearSelection();
+                  // Show success alert after clearing
+                  setTimeout(() => {
+                    Alert.alert(
+                      "Success",
+                      processingMode === "historical"
+                        ? "Price history has been recorded successfully"
+                        : "Items added to inventory successfully"
+                    );
+                  }, 100);
+                } }]
               );
             } catch (error) {
               console.error("Error processing receipt:", error);

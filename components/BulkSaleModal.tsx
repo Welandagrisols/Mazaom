@@ -86,11 +86,16 @@ export function BulkSaleModal({ visible, product, onClose, onAddToCart }: BulkSa
       const totalPrice = weight * pricePerKg;
       onAddToCart(weight, totalPrice);
       setWeightInput(""); // Clear input after successful add
+      onClose();
+      // Show success alert after closing
+      setTimeout(() => {
+        Alert.alert("Success", "Bulk sale added to cart!");
+      }, 100);
     } catch (error) {
       console.error("Error adding bulk item to cart:", error);
       Alert.alert("Error", "Failed to add item to cart");
     }
-  }, [weightInput, pricePerKg, product, onAddToCart]);
+  }, [weightInput, pricePerKg, product, onAddToCart, onClose]);
 
   if (!product) return null;
 

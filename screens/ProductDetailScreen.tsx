@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Alert } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -20,7 +20,7 @@ type ProductDetailScreenProps = {
   route: RouteProp<InventoryStackParamList, "ProductDetail">;
 };
 
-export default function ProductDetailScreen({ route }: ProductDetailScreenProps) {
+export default function ProductDetailScreen({ route, navigation }: ProductDetailScreenProps) {
   const { theme } = useTheme();
   const { products, batches, getProductStock, addToCart } = useApp();
 
@@ -72,7 +72,7 @@ export default function ProductDetailScreen({ route }: ProductDetailScreenProps)
       >
         <Feather name="edit" size={20} color="#FFFFFF" />
       </Pressable>
-      
+
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <View style={[styles.iconContainer, { backgroundColor: Colors.primary.light + "20" }]}>
           <Feather name={category?.icon as any || "box"} size={48} color={Colors.primary.main} />

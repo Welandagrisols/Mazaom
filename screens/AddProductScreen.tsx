@@ -95,9 +95,11 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
       const success = await addProduct(productData);
 
       if (success) {
-        Alert.alert("Success", "Product added successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
+        // Show success alert after navigation to prevent duplication
+        setTimeout(() => {
+          Alert.alert("Success", "Product added successfully");
+        }, 100);
       } else {
         Alert.alert("Error", "Failed to add product. Please try again.");
       }
