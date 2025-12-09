@@ -54,47 +54,6 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
     }, [])
   );
 
-  const handleCompleteSale = useCallback(async () => {
-    try {
-      if (cart.length === 0) {
-        Alert.alert("Error", "Cart is empty");
-        return;
-      }
-
-      if (selectedPayment === "credit" && !selectedCustomer) {
-        Alert.alert("Customer Required", "Please select a customer for credit sales.");
-        return;
-      }
-
-      if (selectedPayment === "credit" && selectedCustomer) {
-        const customer = customers.find((c) => c.id === selectedCustomer);
-        if (customer) {
-          const newBalance = customer.currentBalance + total;
-          if (newBalance > customer.creditLimit) {
-            Alert.alert(
-              "Credit Limit Exceeded",
-              `This sale would exceed ${customer.name}'s credit limit of ${formatCurrency(customer.creditLimit)}. Current balance: ${formatCurrency(customer.currentBalance)}. New balance would be: ${formatCurrency(newBalance)}.`,
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Proceed Anyway",
-                  style: "destructive",
-                  onPress: () => processCompleteSale(),
-                },
-              ]
-            );
-            return;
-          }
-        }
-      }
-
-      await processCompleteSale();
-    } catch (error) {
-      console.error("Error in handleCompleteSale:", error);
-      Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
-    }
-  }, [cart, selectedPayment, selectedCustomer, customers, total, selectedCustomerData, customerCreditLimit, customerCurrentBalance, newBalanceAfterSale, processCompleteSale]);
-
   const processCompleteSale = useCallback(async () => {
     setIsProcessing(true);
     try {
@@ -134,7 +93,48 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [cart, selectedPayment, selectedCustomer, discountAmount, notes, completeSale, navigation]);
+  }, [selectedPayment, selectedCustomer, discountAmount, notes, completeSale, navigation]);
+
+  const handleCompleteSale = useCallback(async () => {
+    try {
+      if (cart.length === 0) {
+        Alert.alert("Error", "Cart is empty");
+        return;
+      }
+
+      if (selectedPayment === "credit" && !selectedCustomer) {
+        Alert.alert("Customer Required", "Please select a customer for credit sales.");
+        return;
+      }
+
+      if (selectedPayment === "credit" && selectedCustomer) {
+        const customer = customers.find((c) => c.id === selectedCustomer);
+        if (customer) {
+          const newBalance = customer.currentBalance + total;
+          if (newBalance > customer.creditLimit) {
+            Alert.alert(
+              "Credit Limit Exceeded",
+              `This sale would exceed ${customer.name}'s credit limit of ${formatCurrency(customer.creditLimit)}. Current balance: ${formatCurrency(customer.currentBalance)}. New balance would be: ${formatCurrency(newBalance)}.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Proceed Anyway",
+                  style: "destructive",
+                  onPress: () => processCompleteSale(),
+                },
+              ]
+            );
+            return;
+          }
+        }
+      }
+
+      await processCompleteSale();
+    } catch (error) {
+      console.error("Error in handleCompleteSale:", error);
+      Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
+    }
+  }, [cart, selectedPayment, selectedCustomer, customers, total, processCompleteSale]);
 
   // Early return check after all hooks
   if (cart.length === 0) {
