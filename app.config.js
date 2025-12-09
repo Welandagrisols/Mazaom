@@ -1,4 +1,3 @@
-
 export default {
   expo: {
     name: "AgroVet POS",
@@ -37,13 +36,6 @@ export default {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
-      "expo-router",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan receipts"
-        }
-      ],
       [
         "expo-image-picker",
         {
@@ -52,7 +44,7 @@ export default {
       ]
     ],
     experiments: {
-      typedRoutes: true,
+      typedRoutes: false,
       reactCompiler: true
     },
     extra: {
