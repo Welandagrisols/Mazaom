@@ -51,9 +51,11 @@ export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps
       });
 
       if (success) {
-        Alert.alert("Success", "Customer added successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
+        // Show success alert after navigation to prevent duplication
+        setTimeout(() => {
+          Alert.alert("Success", "Customer added successfully");
+        }, 100);
       } else {
         Alert.alert("Error", "A customer with this phone number already exists. Please use a different phone number.");
       }

@@ -53,9 +53,11 @@ export default function AddSupplierScreen({ navigation }: AddSupplierScreenProps
       });
 
       if (success) {
-        Alert.alert("Success", "Supplier added successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
+        // Show success alert after navigation to prevent duplication
+        setTimeout(() => {
+          Alert.alert("Success", "Supplier added successfully");
+        }, 100);
       } else {
         Alert.alert("Error", "Failed to add supplier. Please try again.");
       }
