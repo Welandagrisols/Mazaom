@@ -83,6 +83,7 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
 ## Recent Changes
+- December 2024: Combined Add Product and Add Stock screens into unified AddOrRestockScreen for streamlined workflow
 - December 2024: Added receipt processing modes (Historical Data Only vs Add to Current Stock) with price history tracking
 - December 2024: Added dual inventory item types (Unit/Countable vs Bulk/Divisible) with proper tracking
 - December 2024: Added Supabase database integration for cloud persistence
