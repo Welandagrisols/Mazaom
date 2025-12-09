@@ -26,6 +26,7 @@ import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { MoreStackParamList } from "@/navigation/MoreStackNavigator";
 import { ReceiptStorage, generateId, uploadReceiptImage } from "@/utils/storage";
 import { ScannedReceipt } from "@/types";
+import { extractReceiptData, isOpenAIConfigured } from "@/utils/openaiVision";
 
 type ReceiptsScreenProps = {
   navigation: NativeStackNavigationProp<MoreStackParamList, "Receipts">;
@@ -198,20 +199,77 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
       return;
     }
 
-    setReceipts((prev) =>
-      prev.map((r) =>
-        r.status === "pending" ? { ...r, status: "reviewed" as const } : r
-      )
-    );
-
-    for (const receipt of pendingReceipts) {
-      const updatedReceipt = { ...receipt, status: "reviewed" as const };
-      await ReceiptStorage.update(updatedReceipt);
+    if (!isOpenAIConfigured()) {
+      Alert.alert(
+        "API Key Required",
+        "OpenAI API key is not configured. Please add your OPENAI_API_KEY in the Secrets tab to enable bulk AI extraction.",
+        [{ text: "OK" }]
+      );
+      return;
     }
 
     Alert.alert(
-      "Processing Complete",
-      `${pendingReceipts.length} receipt(s) have been marked as reviewed.`
+      "Bulk AI Extraction",
+      `Extract data from ${pendingReceipts.length} receipt(s) using AI?\n\nEach receipt will be processed automatically. You can review and add to inventory afterward.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: `Process ${pendingReceipts.length}`,
+          onPress: async () => {
+            setIsUploading(true);
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const receipt of pendingReceipts) {
+              try {
+                const extractedData = await extractReceiptData(receipt.imageUrl);
+
+                const updatedReceipt = {
+                  ...receipt,
+                  extractedData: {
+                    items: extractedData.items.map(item => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      total: item.totalPrice,
+                      confidence: "high" as const,
+                    })),
+                    supplierName: extractedData.supplierName,
+                    invoiceNumber: extractedData.receiptNumber,
+                    invoiceDate: extractedData.date,
+                    totalAmount: extractedData.total,
+                  },
+                  confidenceScore: 0.85,
+                  status: "reviewed" as const,
+                };
+
+                await ReceiptStorage.update(updatedReceipt);
+                setReceipts(prev => prev.map(r => r.id === receipt.id ? updatedReceipt : r));
+                successCount++;
+              } catch (error) {
+                console.error("Error extracting data from receipt:", receipt.id, error);
+                failCount++;
+              }
+            }
+
+            setIsUploading(false);
+
+            if (failCount === 0) {
+              Alert.alert(
+                "Success! 🎉",
+                `${successCount} receipt(s) processed successfully!\n\nTap any receipt below to review extracted data and add to inventory.`,
+                [{ text: "OK" }]
+              );
+            } else {
+              Alert.alert(
+                "Partial Success",
+                `${successCount} receipt(s) processed successfully.\n${failCount} failed.\n\nTap receipts to review and add to inventory.`,
+                [{ text: "OK" }]
+              );
+            }
+          },
+        },
+      ]
     );
   }, [receipts]);
 
@@ -383,7 +441,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
         {pendingCount > 0 && (
           <Button
-            title={`Process ${pendingCount} Receipt${pendingCount > 1 ? "s" : ""}`}
+            title={`Bulk Extract Data (${pendingCount})`}
             onPress={processReceipts}
             style={styles.processButton}
             icon="zap"
