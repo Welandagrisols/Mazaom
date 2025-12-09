@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import React, { useState, useMemo, useCallback } from "react";
+import { View, StyleSheet, Alert, TextInput, Pressable } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -13,7 +13,6 @@ import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { CATEGORIES, UNITS } from "@/constants/categories";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
-import { Pressable } from "react-native";
 
 type ProductDetailScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ProductDetail">;
@@ -21,8 +20,12 @@ type ProductDetailScreenProps = {
 };
 
 export default function ProductDetailScreen({ route, navigation }: ProductDetailScreenProps) {
+  const { productId } = route.params;
   const { theme } = useTheme();
-  const { products, batches, getProductStock, addToCart } = useApp();
+  const { products, batches, getProductStock, addToCart, addStockEntry } = useApp();
+  const [stockQuantity, setStockQuantity] = useState("");
+  const [stockCostPrice, setStockCostPrice] = useState("");
+  const [isAddingStock, setIsAddingStock] = useState(false);
 
   const product = useMemo(() => {
     return products.find((p) => p.id === route.params.productId);
@@ -38,6 +41,31 @@ export default function ProductDetailScreen({ route, navigation }: ProductDetail
 
   const isLowStock = product && stock <= product.reorderLevel && stock > 0;
   const isOutOfStock = stock === 0;
+
+  const handleAddStock = useCallback(async () => {
+    if (!stockQuantity || !stockCostPrice) {
+      Alert.alert("Error", "Please enter both quantity and cost price.");
+      return;
+    }
+
+    try {
+      setIsAddingStock(true);
+      await addStockEntry({
+        productId: product.id,
+        quantity: parseInt(stockQuantity, 10),
+        costPrice: parseFloat(stockCostPrice),
+        purchaseDate: new Date().toISOString(),
+      });
+      Alert.alert("Success", "Stock added successfully.");
+      setStockQuantity("");
+      setStockCostPrice("");
+      setIsAddingStock(false);
+    } catch (error) {
+      console.error("Error adding stock:", error);
+      Alert.alert("Error", "Failed to add stock. Please try again.");
+      setIsAddingStock(false);
+    }
+  }, [stockQuantity, stockCostPrice, product, addStockEntry]);
 
   if (!product) {
     return (
@@ -213,6 +241,44 @@ export default function ProductDetailScreen({ route, navigation }: ProductDetail
         </View>
       ) : null}
 
+      <View style={[styles.stockAdjustment, { backgroundColor: theme.surface }]}>
+        <ThemedText type="h4" style={styles.sectionTitle}>
+          Add Stock
+        </ThemedText>
+        <View style={styles.stockInputRow}>
+          <View style={[styles.stockInput, { flex: 1, marginRight: Spacing.sm, borderColor: theme.divider }]}>
+            <Feather name="package" size={20} color={theme.textSecondary} />
+            <TextInput
+              style={[styles.stockInputField, { color: theme.text }]}
+              placeholder="Quantity"
+              keyboardType="number-pad"
+              value={stockQuantity}
+              onChangeText={setStockQuantity}
+              placeholderTextColor={theme.textSecondary}
+            />
+          </View>
+          <View style={[styles.stockInput, { flex: 1, borderColor: theme.divider }]}>
+            <Feather name="dollar-sign" size={20} color={theme.textSecondary} />
+            <TextInput
+              style={[styles.stockInputField, { color: theme.text }]}
+              placeholder="Cost Price"
+              keyboardType="numeric"
+              value={stockCostPrice}
+              onChangeText={setStockCostPrice}
+              placeholderTextColor={theme.textSecondary}
+            />
+          </View>
+        </View>
+        <Button
+          onPress={handleAddStock}
+          icon="plus"
+          loading={isAddingStock}
+          style={{ marginTop: Spacing.md }}
+        >
+          Add Stock
+        </Button>
+      </View>
+
       <Button
         onPress={() => {
           try {
@@ -330,7 +396,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addToCartButton: {
+    marginTop: Spacing.xl,
     marginBottom: Spacing.xl,
+  },
+  stockAdjustment: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  stockInputRow: {
+    flexDirection: "row",
+  },
+  stockInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: Spacing.inputHeight,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  stockInputField: {
+    flex: 1,
+    fontSize: 16,
+    marginLeft: Spacing.xs,
   },
   notFound: {
     flex: 1,
