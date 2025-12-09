@@ -73,7 +73,10 @@ export default function TransactionsScreen({ navigation }: TransactionsScreenPro
   ];
 
   const renderItem = ({ item }: { item: Transaction }) => (
-    <TransactionCard transaction={item} onPress={() => {}} />
+    <TransactionCard 
+      transaction={item} 
+      onPress={() => navigation.navigate("TransactionDetail" as any, { transactionId: item.id })} 
+    />
   );
 
   return (
