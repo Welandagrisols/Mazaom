@@ -23,7 +23,7 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [sku, setSku] = useState("");
+  const [sku, setSku] = useState(""); // Auto-generated if left empty
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [unit, setUnit] = useState(UNITS[0].id);
   const [retailPrice, setRetailPrice] = useState("");
@@ -49,10 +49,6 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
       Alert.alert("Error", "Please enter a product name");
       return;
     }
-    if (!sku.trim()) {
-      Alert.alert("Error", "Please enter a SKU");
-      return;
-    }
     if (!retailPrice || parseFloat(retailPrice) <= 0) {
       Alert.alert("Error", "Please enter a valid retail price");
       return;
@@ -70,10 +66,15 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
 
     setIsLoading(true);
     try {
+      // Auto-generate SKU if not provided
+      const finalSku = sku.trim() 
+        ? sku.trim().toUpperCase() 
+        : `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+      
       const productData: Parameters<typeof addProduct>[0] = {
         name: name.trim(),
         description: description.trim(),
-        sku: sku.trim().toUpperCase(),
+        sku: finalSku,
         category: category as any,
         unit: unit as any,
         retailPrice: parseFloat(retailPrice),
@@ -145,7 +146,7 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
         placeholder: "Product description",
         multiline: true,
       })}
-      {renderInput("SKU *", sku, setSku, { placeholder: "e.g., FM-001" })}
+      {renderInput("SKU (optional - auto-generated if left empty)", sku, setSku, { placeholder: "e.g., FM-001 or leave empty" })}
 
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
