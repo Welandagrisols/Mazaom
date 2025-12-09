@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { View, StyleSheet, FlatList, Pressable, Modal, TextInput, Alert } from "react-native";
+import { View, StyleSheet, FlatList, Pressable, Modal, TextInput, Alert, Linking } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -29,6 +29,15 @@ const PAYMENT_OPTIONS = [
   { id: "bank", name: "Bank Transfer", icon: "credit-card" },
 ];
 
+const ADJUSTMENT_REASONS = [
+  { id: "writeoff", name: "Write-off (Bad Debt)", type: "decrease" },
+  { id: "discount", name: "Goodwill Discount", type: "decrease" },
+  { id: "correction_decrease", name: "Correction - Decrease", type: "decrease" },
+  { id: "correction_increase", name: "Correction - Increase", type: "increase" },
+  { id: "penalty", name: "Late Payment Penalty", type: "increase" },
+  { id: "other", name: "Other", type: "both" },
+];
+
 export default function CustomerCreditsScreen({ navigation, route }: CustomerCreditsScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
@@ -38,7 +47,8 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
     getCustomersWithDebt, 
     getTotalOutstandingDebt, 
     getCustomerCreditHistory,
-    recordCreditPayment 
+    recordCreditPayment,
+    adjustCreditBalance
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,6 +69,13 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Adjustment modal states
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
+  const [adjustmentType, setAdjustmentType] = useState<"increase" | "decrease">("decrease");
+  const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [adjustmentNotes, setAdjustmentNotes] = useState("");
 
   const customersWithDebt = useMemo(() => getCustomersWithDebt(), [getCustomersWithDebt]);
   const totalDebt = useMemo(() => getTotalOutstandingDebt(), [getTotalOutstandingDebt]);
@@ -150,6 +167,102 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
     }
   };
 
+  const handleOpenAdjustmentModal = () => {
+    setAdjustmentAmount("");
+    setAdjustmentType("decrease");
+    setAdjustmentReason("");
+    setAdjustmentNotes("");
+    setShowAdjustmentModal(true);
+  };
+
+  const handleAdjustBalance = useCallback(async () => {
+    if (!selectedCustomer) return;
+    
+    const amount = parseFloat(adjustmentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid adjustment amount.");
+      return;
+    }
+
+    if (!adjustmentReason) {
+      Alert.alert("Reason Required", "Please select a reason for the adjustment.");
+      return;
+    }
+
+    const adjustmentValue = adjustmentType === "decrease" ? -amount : amount;
+    const reasonText = ADJUSTMENT_REASONS.find(r => r.id === adjustmentReason)?.name || adjustmentReason;
+
+    Alert.alert(
+      "Confirm Adjustment",
+      `This will ${adjustmentType === "decrease" ? "decrease" : "increase"} ${selectedCustomer.name}'s balance by ${formatCurrency(amount)}.\n\nReason: ${reasonText}\n\nNew balance will be: ${formatCurrency(selectedCustomer.currentBalance + adjustmentValue)}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Confirm", 
+          onPress: async () => {
+            setIsProcessing(true);
+            try {
+              const success = await adjustCreditBalance(
+                selectedCustomer.id,
+                adjustmentValue,
+                reasonText,
+                adjustmentNotes || undefined
+              );
+
+              if (success) {
+                setShowAdjustmentModal(false);
+                Alert.alert(
+                  "Adjustment Recorded",
+                  `Balance adjusted by ${formatCurrency(amount)} for ${selectedCustomer.name}.`
+                );
+                setSelectedCustomer(prev => 
+                  prev ? { ...prev, currentBalance: prev.currentBalance + adjustmentValue } : null
+                );
+              } else {
+                Alert.alert("Error", "Failed to record adjustment. Please try again.");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while recording the adjustment.");
+            } finally {
+              setIsProcessing(false);
+            }
+          }
+        }
+      ]
+    );
+  }, [selectedCustomer, adjustmentAmount, adjustmentType, adjustmentReason, adjustmentNotes, adjustCreditBalance]);
+
+  const handleSendReminder = useCallback(() => {
+    if (!selectedCustomer) return;
+
+    const message = `Hello ${selectedCustomer.name}, this is a friendly reminder about your outstanding balance of ${formatCurrency(selectedCustomer.currentBalance)}. Please arrange payment at your earliest convenience. Thank you!`;
+    
+    Alert.alert(
+      "Send Payment Reminder",
+      `Send reminder to ${selectedCustomer.name}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send SMS",
+          onPress: () => {
+            const smsUrl = `sms:${selectedCustomer.phone}?body=${encodeURIComponent(message)}`;
+            Linking.openURL(smsUrl).catch(() => 
+              Alert.alert("Error", "Unable to open SMS app")
+            );
+          }
+        },
+        {
+          text: "Call",
+          onPress: () => {
+            Linking.openURL(`tel:${selectedCustomer.phone}`).catch(() =>
+              Alert.alert("Error", "Unable to make call")
+            );
+          }
+        }
+      ]
+    );
+  }, [selectedCustomer]);
+
   const formatTransactionDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-KE", { 
@@ -221,22 +334,38 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
 
   const renderTransactionItem = ({ item }: { item: CreditTransaction }) => {
     const isPayment = item.type === "payment";
+    const isAdjustment = item.type === "adjustment";
+    const decreased = item.balanceAfter < item.balanceBefore;
+    
+    let icon = "arrow-up-right";
+    let color = Colors.accent.error;
+    let label = "Credit Sale";
+    
+    if (isPayment) {
+      icon = "arrow-down-left";
+      color = Colors.accent.success;
+      label = "Payment Received";
+    } else if (isAdjustment) {
+      icon = decreased ? "minus-circle" : "plus-circle";
+      color = decreased ? Colors.accent.success : Colors.accent.warning;
+      label = "Balance Adjustment";
+    }
     
     return (
       <View style={[styles.transactionItem, { backgroundColor: theme.surface }]}>
         <View style={[
           styles.transactionIcon, 
-          { backgroundColor: isPayment ? Colors.accent.success + "20" : Colors.accent.error + "20" }
+          { backgroundColor: color + "20" }
         ]}>
           <Feather 
-            name={isPayment ? "arrow-down-left" : "arrow-up-right"} 
+            name={icon as any} 
             size={16} 
-            color={isPayment ? Colors.accent.success : Colors.accent.error} 
+            color={color} 
           />
         </View>
         <View style={styles.transactionInfo}>
           <ThemedText type="body" style={{ fontWeight: "500" }}>
-            {isPayment ? "Payment Received" : item.type === "credit_sale" ? "Credit Sale" : "Adjustment"}
+            {label}
           </ThemedText>
           <ThemedText type="caption" style={{ color: theme.textSecondary }}>
             {formatTransactionDate(item.createdAt)}
@@ -252,10 +381,10 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
             type="body" 
             style={{ 
               fontWeight: "600", 
-              color: isPayment ? Colors.accent.success : Colors.accent.error 
+              color: decreased ? Colors.accent.success : Colors.accent.error 
             }}
           >
-            {isPayment ? "-" : "+"}{formatCurrency(item.amount)}
+            {decreased ? "-" : "+"}{formatCurrency(item.amount)}
           </ThemedText>
           <ThemedText type="caption" style={{ color: theme.textSecondary }}>
             Bal: {formatCurrency(item.balanceAfter)}
@@ -341,13 +470,39 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
                 </View>
               </View>
 
-              <Button
-                onPress={handleOpenPaymentModal}
-                icon="dollar-sign"
-                style={{ marginBottom: Spacing.md }}
-              >
-                Record Payment
-              </Button>
+              <View style={styles.actionButtons}>
+                <Button
+                  onPress={handleOpenPaymentModal}
+                  icon="dollar-sign"
+                  style={{ flex: 1, marginRight: Spacing.xs }}
+                >
+                  Record Payment
+                </Button>
+                <Pressable
+                  onPress={handleOpenAdjustmentModal}
+                  style={({ pressed }) => [
+                    styles.adjustButton,
+                    { 
+                      backgroundColor: theme.surface,
+                      borderColor: Colors.primary.main,
+                      opacity: pressed ? 0.7 : 1
+                    }
+                  ]}
+                >
+                  <Feather name="edit-3" size={20} color={Colors.primary.main} />
+                </Pressable>
+              </View>
+
+              {selectedCustomer.currentBalance > 0 && (
+                <Button
+                  onPress={handleSendReminder}
+                  icon="bell"
+                  variant="outline"
+                  style={{ marginBottom: Spacing.md }}
+                >
+                  Send Payment Reminder
+                </Button>
+              )}
 
               <ThemedText type="body" style={{ fontWeight: "600", marginBottom: Spacing.sm }}>
                 Transaction History
@@ -474,6 +629,151 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
               style={{ marginTop: Spacing.lg }}
             >
               Record Payment
+            </Button>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showAdjustmentModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAdjustmentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="h4">Adjust Credit Balance</ThemedText>
+              <Pressable onPress={() => setShowAdjustmentModal(false)}>
+                <Feather name="x" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+
+            {selectedCustomer && (
+              <View style={[styles.customerSummary, { backgroundColor: theme.surface }]}>
+                <ThemedText type="body" style={{ fontWeight: "600" }}>
+                  {selectedCustomer.name}
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                  Current Balance: {formatCurrency(selectedCustomer.currentBalance)}
+                </ThemedText>
+              </View>
+            )}
+
+            <ThemedText type="body" style={styles.inputLabel}>Adjustment Type</ThemedText>
+            <View style={styles.adjustmentTypeContainer}>
+              <Pressable
+                onPress={() => setAdjustmentType("decrease")}
+                style={[
+                  styles.adjustmentTypeButton,
+                  {
+                    backgroundColor: adjustmentType === "decrease" ? Colors.accent.success : theme.surface,
+                    borderColor: adjustmentType === "decrease" ? Colors.accent.success : theme.divider,
+                  },
+                ]}
+              >
+                <Feather
+                  name="arrow-down"
+                  size={20}
+                  color={adjustmentType === "decrease" ? "#FFFFFF" : Colors.accent.success}
+                />
+                <ThemedText
+                  type="small"
+                  style={{
+                    color: adjustmentType === "decrease" ? "#FFFFFF" : theme.text,
+                    marginTop: 4,
+                  }}
+                >
+                  Decrease Debt
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => setAdjustmentType("increase")}
+                style={[
+                  styles.adjustmentTypeButton,
+                  {
+                    backgroundColor: adjustmentType === "increase" ? Colors.accent.error : theme.surface,
+                    borderColor: adjustmentType === "increase" ? Colors.accent.error : theme.divider,
+                  },
+                ]}
+              >
+                <Feather
+                  name="arrow-up"
+                  size={20}
+                  color={adjustmentType === "increase" ? "#FFFFFF" : Colors.accent.error}
+                />
+                <ThemedText
+                  type="small"
+                  style={{
+                    color: adjustmentType === "increase" ? "#FFFFFF" : theme.text,
+                    marginTop: 4,
+                  }}
+                >
+                  Increase Debt
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <ThemedText type="body" style={styles.inputLabel}>Adjustment Amount</ThemedText>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
+              <ThemedText type="body" style={{ color: theme.textSecondary }}>KES</ThemedText>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                value={adjustmentAmount}
+                onChangeText={setAdjustmentAmount}
+                placeholder="0"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <ThemedText type="body" style={styles.inputLabel}>Reason</ThemedText>
+            <View style={styles.reasonGrid}>
+              {ADJUSTMENT_REASONS.filter(r => r.type === adjustmentType || r.type === "both").map((reason) => (
+                <Pressable
+                  key={reason.id}
+                  onPress={() => setAdjustmentReason(reason.id)}
+                  style={[
+                    styles.reasonButton,
+                    {
+                      backgroundColor: adjustmentReason === reason.id ? Colors.primary.main : theme.surface,
+                      borderColor: adjustmentReason === reason.id ? Colors.primary.main : theme.divider,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={{
+                      color: adjustmentReason === reason.id ? "#FFFFFF" : theme.text,
+                      textAlign: "center",
+                    }}
+                  >
+                    {reason.name}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <ThemedText type="body" style={styles.inputLabel}>Additional Notes (Optional)</ThemedText>
+            <TextInput
+              style={[styles.textInput, styles.notesInput, { backgroundColor: theme.surface, borderColor: theme.divider, color: theme.text }]}
+              value={adjustmentNotes}
+              onChangeText={setAdjustmentNotes}
+              placeholder="Add any notes..."
+              placeholderTextColor={theme.textSecondary}
+              multiline
+              numberOfLines={3}
+            />
+
+            <Button
+              onPress={handleAdjustBalance}
+              loading={isProcessing}
+              disabled={!adjustmentAmount || !adjustmentReason || isProcessing}
+              icon="check"
+              size="large"
+              style={{ marginTop: Spacing.lg }}
+            >
+              Apply Adjustment
             </Button>
           </View>
         </View>
@@ -660,5 +960,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: Spacing.sm,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    marginBottom: Spacing.md,
+  },
+  adjustButton: {
+    width: 56,
+    height: 56,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  adjustmentTypeContainer: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  adjustmentTypeButton: {
+    flex: 1,
+    aspectRatio: 1.5,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.sm,
+  },
+  reasonGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  reasonButton: {
+    minWidth: "48%",
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    padding: Spacing.md,
   },
 });

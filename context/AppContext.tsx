@@ -48,6 +48,7 @@ interface AppContextType {
   getPriceHistory: (productId: string) => PurchasePriceRecord[];
   getCustomerCreditHistory: (customerId: string) => CreditTransaction[];
   recordCreditPayment: (customerId: string, amount: number, paymentMethod: string, referenceNumber?: string, notes?: string) => Promise<boolean>;
+  adjustCreditBalance: (customerId: string, adjustmentAmount: number, reason: string, notes?: string) => Promise<boolean>;
   getTotalOutstandingDebt: () => number;
   getCustomersWithDebt: () => Customer[];
   login: (email: string, password: string) => Promise<boolean>;
@@ -397,6 +398,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return success;
   }, [customers, user]);
 
+  const adjustCreditBalance = useCallback(async (
+    customerId: string,
+    adjustmentAmount: number,
+    reason: string,
+    notes?: string
+  ): Promise<boolean> => {
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return false;
+
+    const creditTransaction: CreditTransaction = {
+      id: generateId(),
+      customerId,
+      type: "adjustment",
+      amount: Math.abs(adjustmentAmount),
+      balanceBefore: customer.currentBalance,
+      balanceAfter: customer.currentBalance + adjustmentAmount,
+      notes: `${reason}${notes ? ` - ${notes}` : ''}`,
+      createdAt: new Date().toISOString(),
+      createdBy: user?.id,
+    };
+
+    const success = await CreditTransactionStorage.add(creditTransaction);
+    if (success) {
+      setCreditTransactions(prev => [creditTransaction, ...prev]);
+      const updatedCustomer = { ...customer, currentBalance: customer.currentBalance + adjustmentAmount };
+      const customerUpdateSuccess = await CustomerStorage.update(updatedCustomer);
+      if (customerUpdateSuccess) {
+        setCustomers(prev => prev.map(c => c.id === customerId ? updatedCustomer : c));
+      }
+      return customerUpdateSuccess;
+    }
+    return success;
+  }, [customers, user]);
+
   const getTotalOutstandingDebt = useCallback((): number => {
     return customers.reduce((total, c) => total + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
   }, [customers]);
@@ -641,6 +676,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getPriceHistory,
         getCustomerCreditHistory,
         recordCreditPayment,
+        adjustCreditBalance,
         getTotalOutstandingDebt,
         getCustomersWithDebt,
         login,
