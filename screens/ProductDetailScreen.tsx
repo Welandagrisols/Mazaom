@@ -67,7 +67,7 @@ export default function ProductDetailScreen({ route, navigation }: ProductDetail
   return (
     <ScreenScrollView>
       <Pressable
-        onPress={() => navigation.navigate("AddProduct")}
+        onPress={() => navigation.navigate("AddOrRestock")}
         style={[styles.editButton, { backgroundColor: Colors.primary.main }]}
       >
         <Feather name="edit" size={20} color="#FFFFFF" />

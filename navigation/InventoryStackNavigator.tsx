@@ -2,8 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import InventoryScreen from "@/screens/InventoryScreen";
 import ProductDetailScreen from "@/screens/ProductDetailScreen";
-import AddProductScreen from "@/screens/AddProductScreen";
-import AddStockScreen from "@/screens/AddStockScreen";
+import AddOrRestockScreen from "@/screens/AddOrRestockScreen";
 import ReceiptUploadScreen from "@/screens/ReceiptUploadScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
@@ -11,8 +10,7 @@ import { getCommonScreenOptions } from "@/navigation/screenOptions";
 export type InventoryStackParamList = {
   Inventory: undefined;
   ProductDetail: { productId: string };
-  AddProduct: undefined;
-  AddStock: undefined;
+  AddOrRestock: undefined;
   ReceiptUpload: undefined;
 };
 
@@ -42,18 +40,10 @@ export default function InventoryStackNavigator() {
         }}
       />
       <Stack.Screen
-        name="AddProduct"
-        component={AddProductScreen}
+        name="AddOrRestock"
+        component={AddOrRestockScreen}
         options={{
-          headerTitle: "Add Product",
-          presentation: "modal",
-        }}
-      />
-      <Stack.Screen
-        name="AddStock"
-        component={AddStockScreen}
-        options={{
-          headerTitle: "Add Stock",
+          headerTitle: "Add / Restock",
           presentation: "modal",
         }}
       />
