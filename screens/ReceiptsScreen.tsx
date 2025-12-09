@@ -94,7 +94,8 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         setReceipts((prev) => [...newReceipts, ...prev]);
         Alert.alert(
           "Success",
-          `${newReceipts.length} file(s) uploaded to cloud! Ready for processing.`
+          `${newReceipts.length} file(s) uploaded to cloud! Tap any receipt below to extract data with AI.`,
+          [{ text: "OK" }]
         );
       }
     } catch (error) {
@@ -135,7 +136,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         await ReceiptStorage.add(newReceipt);
         setReceipts((prev) => [newReceipt, ...prev]);
         setIsUploading(false);
-        Alert.alert("Success", "Receipt photo captured and uploaded to cloud! Ready for processing.");
+        Alert.alert("Success", "Receipt uploaded! Tap the receipt below to extract data with AI.", [{ text: "OK" }]);
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -179,7 +180,8 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         setIsUploading(false);
         Alert.alert(
           "Success",
-          `${newReceipts.length} image(s) uploaded to cloud! Ready for processing.`
+          `${newReceipts.length} image(s) uploaded! Tap any receipt below to extract data with AI.`,
+          [{ text: "OK" }]
         );
       }
     } catch (error) {
@@ -247,47 +249,55 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
   };
 
   const renderReceiptItem = ({ item }: { item: ScannedReceipt }) => (
-    <Card style={styles.receiptCard}>
-      <View style={styles.receiptContent}>
-        <View style={styles.receiptIcon}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.thumbnailImage} />
-          ) : (
-            <Feather name="file-text" size={28} color={Colors.primary.main} />
-          )}
-        </View>
-        <View style={styles.receiptInfo}>
-          <ThemedText type="body" numberOfLines={1} style={styles.receiptName}>
-            {item.extractedData?.supplierName || `Receipt ${item.id.slice(0, 8)}`}
-          </ThemedText>
-          <View style={styles.receiptMeta}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {new Date(item.receiptDate).toLocaleDateString()}
-            </ThemedText>
-            {item.confidenceScore > 0 && (
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {" "} - {Math.round(item.confidenceScore * 100)}% confidence
-              </ThemedText>
+    <TouchableOpacity
+      onPress={() => navigation.navigate("ReceiptUpload" as any, { receiptImageUrl: item.imageUrl })}
+      activeOpacity={0.7}
+    >
+      <Card style={styles.receiptCard}>
+        <View style={styles.receiptContent}>
+          <View style={styles.receiptIcon}>
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.thumbnailImage} />
+            ) : (
+              <Feather name="file-text" size={28} color={Colors.primary.main} />
             )}
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + "20" }]}>
-            <ThemedText
-              type="small"
-              style={{ color: getStatusColor(item.status), fontWeight: "600" }}
-            >
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+          <View style={styles.receiptInfo}>
+            <ThemedText type="body" numberOfLines={1} style={styles.receiptName}>
+              {item.extractedData?.supplierName || `Receipt ${item.id.slice(0, 8)}`}
             </ThemedText>
+            <View style={styles.receiptMeta}>
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                {new Date(item.receiptDate).toLocaleDateString()}
+              </ThemedText>
+              {item.confidenceScore > 0 && (
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  {" "} - {Math.round(item.confidenceScore * 100)}% confidence
+                </ThemedText>
+              )}
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + "20" }]}>
+              <ThemedText
+                type="small"
+                style={{ color: getStatusColor(item.status), fontWeight: "600" }}
+              >
+                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              </ThemedText>
+            </View>
           </View>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              deleteReceipt(item.id);
+            }}
+            style={styles.deleteButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="trash-2" size={20} color={Colors.accent.error} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => deleteReceipt(item.id)}
-          style={styles.deleteButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather name="trash-2" size={20} color={Colors.accent.error} />
-        </TouchableOpacity>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 
   const pendingCount = receipts.filter((r) => r.status === "pending").length;

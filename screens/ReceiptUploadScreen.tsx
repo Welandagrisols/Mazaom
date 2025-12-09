@@ -17,14 +17,15 @@ import { ReceiptProcessingMode } from "@/types";
 
 type ReceiptUploadScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ReceiptUpload">;
+  route?: { params?: { receiptImageUrl?: string } };
 };
 
-export default function ReceiptUploadScreen({ navigation }: ReceiptUploadScreenProps) {
+export default function ReceiptUploadScreen({ navigation, route }: ReceiptUploadScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const { processReceiptData } = useApp();
 
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(route?.params?.receiptImageUrl || null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAddingToInventory, setIsAddingToInventory] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedReceiptData | null>(null);
