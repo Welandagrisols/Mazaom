@@ -97,11 +97,6 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
 
   const handleCompleteSale = useCallback(async () => {
     try {
-      if (cart.length === 0) {
-        Alert.alert("Error", "Cart is empty");
-        return;
-      }
-
       if (selectedPayment === "credit" && !selectedCustomer) {
         Alert.alert("Customer Required", "Please select a customer for credit sales.");
         return;
@@ -135,15 +130,6 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
     }
   }, [cart, selectedPayment, selectedCustomer, customers, total, processCompleteSale]);
-
-  // Early return check after all hooks
-  if (cart.length === 0) {
-    return (
-      <View style={styles.container}>
-        <ThemedText type="body">Cart is empty</ThemedText>
-      </View>
-    );
-  }
 
   return (
     <ScreenKeyboardAwareScrollView>
@@ -380,16 +366,24 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
         />
       </View>
 
-      <Button
-        onPress={handleCompleteSale}
-        loading={isProcessing}
-        disabled={cart.length === 0 || isProcessing}
-        icon="check-circle"
-        size="large"
-        style={styles.completeButton}
-      >
-        Complete Sale - {formatCurrency(total)}
-      </Button>
+      {cart.length === 0 ? (
+        <View style={[styles.card, { backgroundColor: theme.surface, padding: Spacing.xl, alignItems: "center" }]}>
+          <ThemedText type="body" style={{ color: theme.textSecondary }}>
+            Cart is empty. Add items from the POS screen to continue.
+          </ThemedText>
+        </View>
+      ) : (
+        <Button
+          onPress={handleCompleteSale}
+          loading={isProcessing}
+          disabled={isProcessing}
+          icon="check-circle"
+          size="large"
+          style={styles.completeButton}
+        >
+          Complete Sale - {formatCurrency(total)}
+        </Button>
+      )}
     </ScreenKeyboardAwareScrollView>
   );
 }
