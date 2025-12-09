@@ -60,6 +60,11 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
     if (isProcessing) return;
 
     try {
+      if (cart.length === 0) {
+        Alert.alert("Error", "Cart is empty");
+        return;
+      }
+
       if (selectedPayment === "credit" && !selectedCustomer) {
         Alert.alert("Customer Required", "Please select a customer for credit sales.");
         return;
@@ -123,7 +128,7 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
       setIsProcessing(false);
     }
-  }, [selectedPayment, selectedCustomer, customers, total, discountAmount, notes, completeSale, navigation, isProcessing]);
+  }, [cart.length, selectedPayment, selectedCustomer, customers, total, discountAmount, notes, completeSale, navigation, isProcessing]);
 
   return (
     <ScreenKeyboardAwareScrollView>
