@@ -34,7 +34,7 @@ interface AppContextType {
   getCartTotal: () => number;
   getCartSubtotal: () => number;
   completeSale: (paymentMethod: string, customerId?: string, discount?: number, notes?: string) => Promise<Transaction | null>;
-  addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => Promise<boolean>;
+  addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">, initialStock?: { quantity: number; costPerUnit?: number }) => Promise<boolean>;
   updateProduct: (product: Product) => Promise<boolean>;
   addCustomer: (customer: Omit<Customer, "id">) => Promise<boolean>;
   updateCustomer: (customer: Customer) => Promise<boolean>;
@@ -290,7 +290,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addProduct = useCallback(
     async (
-      productData: Omit<Product, "id" | "createdAt" | "updatedAt">
+      productData: Omit<Product, "id" | "createdAt" | "updatedAt">,
+      initialStock?: { quantity: number; costPerUnit?: number }
     ): Promise<boolean> => {
       const product: Product = {
         ...productData,
@@ -302,6 +303,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const success = await ProductStorage.add(product);
       if (success) {
         setProducts((prev) => [...prev, product]);
+        
+        // Create initial inventory batch if stock quantity is provided
+        if (initialStock && initialStock.quantity > 0) {
+          const batch: InventoryBatch = {
+            id: generateId(),
+            productId: product.id,
+            batchNumber: `INIT-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+            quantity: initialStock.quantity,
+            purchaseDate: new Date().toISOString().split("T")[0],
+            costPerUnit: initialStock.costPerUnit || productData.costPrice,
+          };
+          await BatchStorage.add(batch);
+          setBatches((prev) => [...prev, batch]);
+        }
       }
       return success;
     },

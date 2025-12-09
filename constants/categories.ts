@@ -19,6 +19,12 @@ export const UNITS = [
   { id: "pieces", name: "Pieces", abbr: "pcs" },
   { id: "bottles", name: "Bottles", abbr: "btl" },
   { id: "boxes", name: "Boxes", abbr: "box" },
+  { id: "containers", name: "Containers", abbr: "cont" },
+  { id: "sachets", name: "Sachets", abbr: "sach" },
+  { id: "rolls", name: "Rolls", abbr: "roll" },
+  { id: "cartons", name: "Cartons", abbr: "ctn" },
+  { id: "drums", name: "Drums", abbr: "drum" },
+  { id: "tins", name: "Tins", abbr: "tin" },
 ] as const;
 
 export type UnitId = typeof UNITS[number]["id"];

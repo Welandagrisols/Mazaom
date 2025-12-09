@@ -9,7 +9,7 @@ import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareS
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
-import { CATEGORIES, UNITS } from "@/constants/categories";
+import { CATEGORIES, UNITS, CategoryId, UnitId } from "@/constants/categories";
 import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
 import { ItemType } from "@/types";
 
@@ -24,8 +24,8 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [sku, setSku] = useState(""); // Auto-generated if left empty
-  const [category, setCategory] = useState(CATEGORIES[0].id);
-  const [unit, setUnit] = useState(UNITS[0].id);
+  const [category, setCategory] = useState<CategoryId>(CATEGORIES[0].id);
+  const [unit, setUnit] = useState<UnitId>(UNITS[0].id);
   const [retailPrice, setRetailPrice] = useState("");
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [costPrice, setCostPrice] = useState("");
@@ -36,6 +36,7 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
   const [pricePerKg, setPricePerKg] = useState("");
   const [costPerKg, setCostPerKg] = useState("");
   const [bulkUnit, setBulkUnit] = useState("kg");
+  const [initialStockQuantity, setInitialStockQuantity] = useState("");
 
   const BULK_UNITS = [
     { id: "kg", name: "Kilograms (kg)" },
@@ -93,7 +94,11 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
         productData.bulkUnit = bulkUnit;
       }
 
-      const success = await addProduct(productData);
+      const initialStock = initialStockQuantity && parseInt(initialStockQuantity) > 0
+        ? { quantity: parseInt(initialStockQuantity), costPerUnit: parseFloat(costPrice) || undefined }
+        : undefined;
+      
+      const success = await addProduct(productData, initialStock);
 
       if (success) {
         navigation.goBack();
@@ -110,7 +115,7 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
     } finally {
       setIsLoading(false);
     }
-  }, [name, description, sku, category, unit, retailPrice, wholesalePrice, costPrice, reorderLevel, itemType, packageWeight, pricePerKg, costPerKg, bulkUnit, addProduct, navigation]);
+  }, [name, description, sku, category, unit, retailPrice, wholesalePrice, costPrice, reorderLevel, itemType, packageWeight, pricePerKg, costPerKg, bulkUnit, initialStockQuantity, addProduct, navigation]);
 
   const renderInput = (
     label: string,
@@ -464,6 +469,46 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
         </View>
       </View>
 
+      <View style={[styles.stockSection, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
+        <View style={styles.stockHeader}>
+          <Feather name="package" size={16} color={Colors.primary.main} />
+          <ThemedText type="body" style={{ color: theme.text, marginLeft: Spacing.xs, flex: 1, fontWeight: "600" }}>
+            Initial Stock (Optional)
+          </ThemedText>
+        </View>
+        <ThemedText type="caption" style={{ color: theme.textSecondary, marginBottom: Spacing.md }}>
+          Add opening stock when creating this product. You can also add stock later.
+        </ThemedText>
+        
+        <View style={styles.row}>
+          <View style={[styles.inputGroup, { flex: 1, marginRight: Spacing.sm, marginBottom: 0 }]}>
+            <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+              Quantity
+            </ThemedText>
+            <View style={[styles.priceInput, { backgroundColor: theme.backgroundSecondary, borderColor: theme.divider }]}>
+              <TextInput
+                style={[styles.priceInputField, { color: theme.text }]}
+                value={initialStockQuantity}
+                onChangeText={setInitialStockQuantity}
+                placeholder="0"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+              />
+              <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                {UNITS.find(u => u.id === unit)?.abbr || unit}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={[styles.inputGroup, { flex: 1, marginLeft: Spacing.sm, marginBottom: 0, justifyContent: "flex-end" }]}>
+            <View style={[styles.stockPreview, { backgroundColor: theme.backgroundSecondary }]}>
+              <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+                Unit: {UNITS.find(u => u.id === unit)?.name || unit}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+      </View>
+
       <Button onPress={handleSubmit} loading={isLoading} icon="plus" style={styles.submitButton}>
         Add Product
       </Button>
@@ -549,5 +594,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: Spacing.md,
+  },
+  stockSection: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  stockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  stockPreview: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    height: Spacing.inputHeight,
   },
 });
