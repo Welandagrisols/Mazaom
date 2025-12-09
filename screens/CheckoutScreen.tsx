@@ -30,6 +30,11 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   const [notes, setNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Calculate values after all hooks
+  const subtotal = getCartSubtotal();
+  const discountAmount = parseFloat(discount) || 0;
+  const total = subtotal - discountAmount;
+
   // Reset form when screen is focused
   useFocusEffect(
     useCallback(() => {
@@ -39,11 +44,6 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       setNotes("");
     }, [])
   );
-
-  // Calculate values after all hooks
-  const subtotal = getCartSubtotal();
-  const discountAmount = parseFloat(discount) || 0;
-  const total = subtotal - discountAmount;
 
   const selectedCustomerData: Customer | undefined = useMemo(() => {
     return selectedCustomer ? customers.find(c => c.id === selectedCustomer) : undefined;
@@ -65,6 +65,40 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
         return;
       }
 
+      const processSale = async () => {
+        setIsProcessing(true);
+        try {
+          const transaction = await completeSale(
+            selectedPayment,
+            selectedCustomer || undefined,
+            discountAmount,
+            notes || undefined
+          );
+
+          if (transaction) {
+            navigation.goBack();
+            setTimeout(() => {
+              Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
+                [
+                  {
+                    text: "View Details",
+                    onPress: () => {
+                      navigation.navigate("Transactions");
+                      navigation.navigate("TransactionDetail", { transactionId: transaction.id });
+                    },
+                  },
+                  { text: "OK", style: "cancel" },
+                ]
+              );
+            }, 100);
+          } else {
+            Alert.alert("Error", "Failed to complete sale. Please try again.");
+          }
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+
       if (selectedPayment === "credit" && selectedCustomer) {
         const customer = customers.find((c) => c.id === selectedCustomer);
         if (customer) {
@@ -75,37 +109,7 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
               `This sale would exceed ${customer.name}'s credit limit of ${formatCurrency(customer.creditLimit)}. Current balance: ${formatCurrency(customer.currentBalance)}. New balance would be: ${formatCurrency(newBalance)}.`,
               [
                 { text: "Cancel", style: "cancel" },
-                {
-                  text: "Proceed Anyway",
-                  style: "destructive",
-                  onPress: async () => {
-                    setIsProcessing(true);
-                    const transaction = await completeSale(
-                      selectedPayment,
-                      selectedCustomer || undefined,
-                      discountAmount,
-                      notes || undefined
-                    );
-                    if (transaction) {
-                      navigation.goBack();
-                      setTimeout(() => {
-                        Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
-                          [
-                            {
-                              text: "View Details",
-                              onPress: () => {
-                                navigation.navigate("Transactions");
-                                navigation.navigate("TransactionDetail", { transactionId: transaction.id });
-                              },
-                            },
-                            { text: "OK", style: "cancel" },
-                          ]
-                        );
-                      }, 100);
-                    }
-                    setIsProcessing(false);
-                  },
-                },
+                { text: "Proceed Anyway", style: "destructive", onPress: processSale },
               ]
             );
             return;
@@ -113,37 +117,10 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
         }
       }
 
-      setIsProcessing(true);
-      const transaction = await completeSale(
-        selectedPayment,
-        selectedCustomer || undefined,
-        discountAmount,
-        notes || undefined
-      );
-
-      if (transaction) {
-        navigation.goBack();
-        setTimeout(() => {
-          Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
-            [
-              {
-                text: "View Details",
-                onPress: () => {
-                  navigation.navigate("Transactions");
-                  navigation.navigate("TransactionDetail", { transactionId: transaction.id });
-                },
-              },
-              { text: "OK", style: "cancel" },
-            ]
-          );
-        }, 100);
-      } else {
-        Alert.alert("Error", "Failed to complete sale. Please try again.");
-      }
+      await processSale();
     } catch (error) {
       console.error("Error in handleCompleteSale:", error);
       Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
-    } finally {
       setIsProcessing(false);
     }
   }, [selectedPayment, selectedCustomer, customers, total, discountAmount, notes, completeSale, navigation, isProcessing]);
