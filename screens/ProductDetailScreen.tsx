@@ -43,29 +43,40 @@ export default function ProductDetailScreen({ route, navigation }: ProductDetail
   const isOutOfStock = stock === 0;
 
   const handleAddStock = useCallback(async () => {
-    if (!stockQuantity || !stockCostPrice) {
-      Alert.alert("Error", "Please enter both quantity and cost price.");
+    if (!stockQuantity || parseFloat(stockQuantity) <= 0) {
+      Alert.alert("Error", "Please enter a valid quantity.");
+      return;
+    }
+    if (!stockCostPrice || parseFloat(stockCostPrice) <= 0) {
+      Alert.alert("Error", "Please enter a valid cost price.");
       return;
     }
 
     try {
       setIsAddingStock(true);
-      await addStockEntry({
-        productId: product.id,
-        quantity: parseInt(stockQuantity, 10),
-        costPrice: parseFloat(stockCostPrice),
-        purchaseDate: new Date().toISOString(),
-      });
-      Alert.alert("Success", "Stock added successfully.");
-      setStockQuantity("");
-      setStockCostPrice("");
-      setIsAddingStock(false);
+      const result = await addStockEntry(
+        product.id,
+        parseFloat(stockQuantity),
+        parseFloat(stockCostPrice)
+      );
+
+      if (result) {
+        const message = result.merged
+          ? `Added ${stockQuantity} ${unit?.abbr} to existing batch (same cost price)`
+          : `Created new batch with ${stockQuantity} ${unit?.abbr} (different cost price)`;
+        Alert.alert("Success", message);
+        setStockQuantity("");
+        setStockCostPrice("");
+      } else {
+        Alert.alert("Error", "Failed to add stock. Please try again.");
+      }
     } catch (error) {
       console.error("Error adding stock:", error);
       Alert.alert("Error", "Failed to add stock. Please try again.");
+    } finally {
       setIsAddingStock(false);
     }
-  }, [stockQuantity, stockCostPrice, product, addStockEntry]);
+  }, [stockQuantity, stockCostPrice, product, addStockEntry, unit]);
 
   if (!product) {
     return (
