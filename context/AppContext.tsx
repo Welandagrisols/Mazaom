@@ -39,6 +39,7 @@ interface AppContextType {
   addCustomer: (customer: Omit<Customer, "id">) => Promise<boolean>;
   updateCustomer: (customer: Customer) => Promise<boolean>;
   addSupplier: (supplier: Omit<Supplier, "id">) => Promise<boolean>;
+  addStockEntry: (productId: string, quantity: number, costPerUnit: number) => Promise<{ merged: boolean; batchId: string } | null>;
   getProductStock: (productId: string) => number;
   getTodaySales: () => number;
   getTodayTransactionCount: () => number;
@@ -386,6 +387,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const addStockEntry = useCallback(
+    async (
+      productId: string,
+      quantity: number,
+      costPerUnit: number
+    ): Promise<{ merged: boolean; batchId: string } | null> => {
+      const product = products.find((p) => p.id === productId);
+      if (!product || quantity <= 0) return null;
+
+      const existingBatch = batches.find(
+        (b) => b.productId === productId && b.costPerUnit === costPerUnit
+      );
+
+      if (existingBatch) {
+        const newQuantity = existingBatch.quantity + quantity;
+        const success = await BatchStorage.updateQuantity(existingBatch.id, newQuantity);
+        if (success) {
+          setBatches((prev) =>
+            prev.map((b) => (b.id === existingBatch.id ? { ...b, quantity: newQuantity } : b))
+          );
+          return { merged: true, batchId: existingBatch.id };
+        }
+        return null;
+      } else {
+        const newBatch: InventoryBatch = {
+          id: generateId(),
+          productId,
+          batchNumber: `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+          quantity,
+          purchaseDate: new Date().toISOString().split("T")[0],
+          costPerUnit,
+        };
+        const success = await BatchStorage.add(newBatch);
+        if (success) {
+          setBatches((prev) => [...prev, newBatch]);
+          return { merged: false, batchId: newBatch.id };
+        }
+        return null;
+      }
+    },
+    [products, batches]
+  );
+
   const getCustomerCreditHistory = useCallback((customerId: string): CreditTransaction[] => {
     return creditTransactions.filter(t => t.customerId === customerId);
   }, [creditTransactions]);
@@ -696,6 +740,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCustomer,
         updateCustomer,
         addSupplier,
+        addStockEntry,
         getProductStock,
         getTodaySales,
         getTodayTransactionCount,

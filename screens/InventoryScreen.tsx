@@ -382,12 +382,29 @@ export default function InventoryScreen({ navigation }: InventoryScreenProps) {
             backgroundColor: theme.surface,
             borderWidth: 2,
             borderColor: Colors.primary.main,
-            bottom: tabBarHeight + Spacing.xl + 70,
+            bottom: tabBarHeight + Spacing.xl + 140,
             opacity: pressed ? 0.9 : 1,
           },
         ]}
       >
         <Feather name="camera" size={24} color={Colors.primary.main} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => navigation.navigate("AddStock")}
+        style={({ pressed }) => [
+          styles.fab,
+          styles.fabSecondary,
+          {
+            backgroundColor: theme.surface,
+            borderWidth: 2,
+            borderColor: Colors.accent.success,
+            bottom: tabBarHeight + Spacing.xl + 70,
+            opacity: pressed ? 0.9 : 1,
+          },
+        ]}
+      >
+        <Feather name="package" size={24} color={Colors.accent.success} />
       </Pressable>
 
       <Pressable
