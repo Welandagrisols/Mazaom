@@ -45,7 +45,10 @@
     },
     "extra": {
       "supabaseUrl": "${SUPABASE_URL}",
-      "supabaseAnonKey": "${SUPABASE_ANON_KEY}"
+      "supabaseAnonKey": "${SUPABASE_ANON_KEY}",
+      "eas": {
+        "projectId": "4978aa1b-9880-4fb1-ad30-c1257e9e782f"
+      }
     }
   }
 }
