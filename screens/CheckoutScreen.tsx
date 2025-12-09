@@ -20,6 +20,7 @@ type CheckoutScreenProps = {
 };
 
 export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
+  // ALL HOOKS MUST BE CALLED FIRST - NO CONDITIONAL LOGIC BEFORE THIS POINT
   const { theme } = useTheme();
   const { cart, customers, getCartSubtotal, completeSale, clearCart } = useApp();
 
@@ -29,6 +30,17 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   const [notes, setNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Reset form when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      setSelectedPayment("cash");
+      setSelectedCustomer(null);
+      setDiscount("");
+      setNotes("");
+    }, [])
+  );
+
+  // Calculate values after all hooks
   const subtotal = getCartSubtotal();
   const discountAmount = parseFloat(discount) || 0;
   const total = subtotal - discountAmount;
@@ -44,58 +56,9 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   const exceedsCreditLimit = isCreditSale && newBalanceAfterSale > customerCreditLimit;
   const creditSaleRequiresCustomer = isCreditSale && !selectedCustomer;
 
-  // Reset form when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      setSelectedPayment("cash");
-      setSelectedCustomer(null);
-      setDiscount("");
-      setNotes("");
-    }, [])
-  );
-
-  const processCompleteSale = useCallback(async () => {
-    setIsProcessing(true);
-    try {
-      const transaction = await completeSale(
-        selectedPayment,
-        selectedCustomer || undefined,
-        discountAmount,
-        notes || undefined
-      );
-
-      if (transaction) {
-        // Navigate back immediately after successful sale
-        navigation.goBack();
-        // Then show success alert after navigation
-        setTimeout(() => {
-          Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
-            [
-              {
-                text: "View Details",
-                onPress: () => {
-                  navigation.navigate("Transactions");
-                  navigation.navigate("TransactionDetail", { transactionId: transaction.id });
-                },
-              },
-              {
-                text: "OK",
-                style: "cancel"
-              },
-            ]
-          );
-        }, 100); // Small delay to ensure navigation has completed
-      } else {
-        Alert.alert("Error", "Failed to complete sale. Please try again.");
-      }
-    } catch (error) {
-      Alert.alert("Error", "An error occurred. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [selectedPayment, selectedCustomer, discountAmount, notes, completeSale, navigation]);
-
   const handleCompleteSale = useCallback(async () => {
+    if (isProcessing) return;
+
     try {
       if (selectedPayment === "credit" && !selectedCustomer) {
         Alert.alert("Customer Required", "Please select a customer for credit sales.");
@@ -115,7 +78,33 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
                 {
                   text: "Proceed Anyway",
                   style: "destructive",
-                  onPress: () => processCompleteSale(),
+                  onPress: async () => {
+                    setIsProcessing(true);
+                    const transaction = await completeSale(
+                      selectedPayment,
+                      selectedCustomer || undefined,
+                      discountAmount,
+                      notes || undefined
+                    );
+                    if (transaction) {
+                      navigation.goBack();
+                      setTimeout(() => {
+                        Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
+                          [
+                            {
+                              text: "View Details",
+                              onPress: () => {
+                                navigation.navigate("Transactions");
+                                navigation.navigate("TransactionDetail", { transactionId: transaction.id });
+                              },
+                            },
+                            { text: "OK", style: "cancel" },
+                          ]
+                        );
+                      }, 100);
+                    }
+                    setIsProcessing(false);
+                  },
                 },
               ]
             );
@@ -124,12 +113,40 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
         }
       }
 
-      await processCompleteSale();
+      setIsProcessing(true);
+      const transaction = await completeSale(
+        selectedPayment,
+        selectedCustomer || undefined,
+        discountAmount,
+        notes || undefined
+      );
+
+      if (transaction) {
+        navigation.goBack();
+        setTimeout(() => {
+          Alert.alert("Sale Complete", `Transaction ${transaction.transactionNumber} completed successfully!`,
+            [
+              {
+                text: "View Details",
+                onPress: () => {
+                  navigation.navigate("Transactions");
+                  navigation.navigate("TransactionDetail", { transactionId: transaction.id });
+                },
+              },
+              { text: "OK", style: "cancel" },
+            ]
+          );
+        }, 100);
+      } else {
+        Alert.alert("Error", "Failed to complete sale. Please try again.");
+      }
     } catch (error) {
       console.error("Error in handleCompleteSale:", error);
       Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
+    } finally {
+      setIsProcessing(false);
     }
-  }, [cart, selectedPayment, selectedCustomer, customers, total, processCompleteSale]);
+  }, [selectedPayment, selectedCustomer, customers, total, discountAmount, notes, completeSale, navigation, isProcessing]);
 
   return (
     <ScreenKeyboardAwareScrollView>
