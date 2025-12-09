@@ -136,6 +136,15 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
     }
   }, [cart, selectedPayment, selectedCustomer, discountAmount, notes, completeSale, navigation]);
 
+  // Early return check after all hooks
+  if (cart.length === 0) {
+    return (
+      <View style={styles.container}>
+        <ThemedText type="body">Cart is empty</ThemedText>
+      </View>
+    );
+  }
+
   return (
     <ScreenKeyboardAwareScrollView>
       <View style={styles.section}>
@@ -476,5 +485,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: Spacing.xs,
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
