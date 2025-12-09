@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Image, ScrollView, ActivityIndicator, Alert, Switch } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -14,10 +14,11 @@ import { InventoryStackParamList } from "@/navigation/InventoryStackNavigator";
 import { extractReceiptData, isOpenAIConfigured, ExtractedReceiptData } from "@/utils/openaiVision";
 import { useApp } from "@/context/AppContext";
 import { ReceiptProcessingMode } from "@/types";
+import { ReceiptStorage } from "@/utils/storage";
 
 type ReceiptUploadScreenProps = {
   navigation: NativeStackNavigationProp<InventoryStackParamList, "ReceiptUpload">;
-  route?: { params?: { receiptImageUrl?: string } };
+  route?: { params?: { receiptId?: string; receiptImageUrl?: string } };
 };
 
 export default function ReceiptUploadScreen({ navigation, route }: ReceiptUploadScreenProps) {
@@ -30,6 +31,44 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
   const [isAddingToInventory, setIsAddingToInventory] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedReceiptData | null>(null);
   const [processingMode, setProcessingMode] = useState<ReceiptProcessingMode>("historical");
+  const [currentReceiptId, setCurrentReceiptId] = useState<string | null>(route?.params?.receiptId || null);
+  const [isLoadingReceipt, setIsLoadingReceipt] = useState(false);
+
+  useEffect(() => {
+    const loadReceiptData = async () => {
+      const receiptId = route?.params?.receiptId;
+      if (receiptId) {
+        setIsLoadingReceipt(true);
+        try {
+          const receipt = await ReceiptStorage.getById(receiptId);
+          if (receipt && receipt.extractedData?.items && receipt.extractedData.items.length > 0) {
+            const convertedData: ExtractedReceiptData = {
+              items: receipt.extractedData.items.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.total,
+                unit: "units",
+              })),
+              supplierName: receipt.extractedData.supplierName,
+              receiptNumber: receipt.extractedData.invoiceNumber,
+              date: receipt.extractedData.invoiceDate,
+              total: receipt.extractedData.totalAmount,
+            };
+            setExtractedData(convertedData);
+            setSelectedImage(receipt.imageUrl);
+            setCurrentReceiptId(receipt.id);
+          }
+        } catch (error) {
+          console.error("Error loading receipt data:", error);
+        } finally {
+          setIsLoadingReceipt(false);
+        }
+      }
+    };
+
+    loadReceiptData();
+  }, [route?.params?.receiptId]);
 
   const pickFromGallery = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -149,17 +188,38 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
                 ? `\nStock added: ${result.stockAdded} units`
                 : "";
 
+              // Update receipt status to confirmed if we have a receiptId
+              if (currentReceiptId) {
+                try {
+                  const receipt = await ReceiptStorage.getById(currentReceiptId);
+                  if (receipt) {
+                    await ReceiptStorage.update({
+                      ...receipt,
+                      status: "confirmed",
+                    });
+                  }
+                } catch (updateError) {
+                  console.error("Error updating receipt status:", updateError);
+                }
+              }
+
               // Clear the selection immediately
               clearSelection();
               
-              // Show success message
-              setTimeout(() => {
-                Alert.alert(
-                  "Success! ✅",
-                  `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}\n\n${processingMode === "historical" ? "Price history recorded" : "Items added to inventory"}`,
-                  [{ text: "OK" }]
-                );
-              }, 100);
+              // Show success message and navigate back
+              Alert.alert(
+                "Success!",
+                `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}\n\n${processingMode === "historical" ? "Price history recorded" : "Items added to inventory"}`,
+                [{ 
+                  text: "OK", 
+                  onPress: () => {
+                    // Navigate back to the previous screen (close modal)
+                    if (navigation.canGoBack()) {
+                      navigation.goBack();
+                    }
+                  }
+                }]
+              );
             } catch (error) {
               console.error("Error processing receipt:", error);
               const errorMessage = error instanceof Error ? error.message : "Failed to process receipt";
@@ -177,6 +237,17 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
     setSelectedImage(null);
     setExtractedData(null);
   };
+
+  if (isLoadingReceipt) {
+    return (
+      <ThemedView style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primary.main} />
+        <ThemedText type="body" style={{ marginTop: Spacing.md }}>
+          Loading receipt data...
+        </ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -423,6 +494,10 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   content: {
     flex: 1,

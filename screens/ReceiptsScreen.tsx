@@ -19,7 +19,6 @@ import * as ImagePicker from "expo-image-picker";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button } from "@/components/Button";
-import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
@@ -39,6 +38,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
   const [receipts, setReceipts] = useState<ScannedReceipt[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [processingReceiptId, setProcessingReceiptId] = useState<string | null>(null);
 
   useEffect(() => {
     loadReceipts();
@@ -95,7 +95,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         setReceipts((prev) => [...newReceipts, ...prev]);
         Alert.alert(
           "Success",
-          `${newReceipts.length} file(s) uploaded to cloud! Tap any receipt below to extract data with AI.`,
+          `${newReceipts.length} file(s) uploaded! Use the "Extract Data" button on each receipt to process with AI.`,
           [{ text: "OK" }]
         );
       }
@@ -137,7 +137,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         await ReceiptStorage.add(newReceipt);
         setReceipts((prev) => [newReceipt, ...prev]);
         setIsUploading(false);
-        Alert.alert("Success", "Receipt uploaded! Tap the receipt below to extract data with AI.", [{ text: "OK" }]);
+        Alert.alert("Success", "Receipt uploaded! Use the 'Extract Data' button to process with AI.", [{ text: "OK" }]);
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -181,7 +181,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         setIsUploading(false);
         Alert.alert(
           "Success",
-          `${newReceipts.length} image(s) uploaded! Tap any receipt below to extract data with AI.`,
+          `${newReceipts.length} image(s) uploaded! Use the 'Extract Data' button on each receipt to process.`,
           [{ text: "OK" }]
         );
       }
@@ -192,7 +192,86 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
     }
   }, []);
 
-  const processReceipts = useCallback(async () => {
+  const extractSingleReceipt = useCallback(async (receipt: ScannedReceipt) => {
+    if (!isOpenAIConfigured()) {
+      Alert.alert(
+        "API Key Required",
+        "OpenAI API key is not configured. Please add your OPENAI_API_KEY in the Secrets tab to enable AI extraction.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    setProcessingReceiptId(receipt.id);
+    
+    try {
+      console.log("Starting extraction for receipt:", receipt.id);
+      const extractedData = await extractReceiptData(receipt.imageUrl);
+      console.log("Extraction successful:", extractedData);
+
+      if (!extractedData || !extractedData.items || extractedData.items.length === 0) {
+        Alert.alert(
+          "No Data Found",
+          "Could not extract any items from the receipt. Please ensure the image is clear and contains visible product information."
+        );
+        setProcessingReceiptId(null);
+        return;
+      }
+
+      const updatedReceipt: ScannedReceipt = {
+        ...receipt,
+        extractedData: {
+          items: extractedData.items.map(item => ({
+            name: item.name || "Unknown Item",
+            quantity: item.quantity || 1,
+            unitPrice: item.unitPrice || 0,
+            total: item.totalPrice || (item.quantity * item.unitPrice) || 0,
+            confidence: "high" as const,
+          })),
+          supplierName: extractedData.supplierName || undefined,
+          invoiceNumber: extractedData.receiptNumber || undefined,
+          invoiceDate: extractedData.date || undefined,
+          totalAmount: extractedData.total || undefined,
+        },
+        confidenceScore: 0.85,
+        status: "reviewed" as const,
+      };
+
+      await ReceiptStorage.update(updatedReceipt);
+      setReceipts(prev => prev.map(r => r.id === receipt.id ? updatedReceipt : r));
+
+      const itemCount = extractedData.items?.length || 0;
+      const supplierInfo = extractedData.supplierName ? ` from ${extractedData.supplierName}` : '';
+      
+      Alert.alert(
+        "Data Extracted Successfully",
+        `Found ${itemCount} item(s)${supplierInfo}.\n\nTap "View & Add" to review the data and add to your inventory.`,
+        [
+          { text: "Later", style: "cancel" },
+          { 
+            text: "View & Add", 
+            onPress: () => {
+              (navigation as any).navigate("InventoryStack", {
+                screen: "ReceiptUpload",
+                params: { receiptId: receipt.id, receiptImageUrl: receipt.imageUrl }
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Error extracting data from receipt:", receipt.id, error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      Alert.alert(
+        "Extraction Failed",
+        `Failed to extract data from the receipt:\n\n${errorMessage}\n\nPlease ensure the image is clear and try again.`
+      );
+    } finally {
+      setProcessingReceiptId(null);
+    }
+  }, [navigation]);
+
+  const processAllPending = useCallback(async () => {
     const pendingReceipts = receipts.filter((r) => r.status === "pending");
     if (pendingReceipts.length === 0) {
       Alert.alert("No Pending Receipts", "All receipts have been processed.");
@@ -210,7 +289,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
     Alert.alert(
       "Bulk AI Extraction",
-      `Extract data from ${pendingReceipts.length} receipt(s) using AI?\n\nEach receipt will be processed automatically. You can review and add to inventory afterward.`,
+      `Extract data from ${pendingReceipts.length} receipt(s) using AI?\n\nEach receipt will be processed automatically. You can then review and add each to inventory.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -222,22 +301,28 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
             for (const receipt of pendingReceipts) {
               try {
+                setProcessingReceiptId(receipt.id);
                 const extractedData = await extractReceiptData(receipt.imageUrl);
 
-                const updatedReceipt = {
+                if (!extractedData || !extractedData.items) {
+                  failCount++;
+                  continue;
+                }
+
+                const updatedReceipt: ScannedReceipt = {
                   ...receipt,
                   extractedData: {
                     items: extractedData.items.map(item => ({
-                      name: item.name,
-                      quantity: item.quantity,
-                      unitPrice: item.unitPrice,
-                      total: item.totalPrice,
+                      name: item.name || "Unknown Item",
+                      quantity: item.quantity || 1,
+                      unitPrice: item.unitPrice || 0,
+                      total: item.totalPrice || (item.quantity * item.unitPrice) || 0,
                       confidence: "high" as const,
                     })),
-                    supplierName: extractedData.supplierName,
-                    invoiceNumber: extractedData.receiptNumber,
-                    invoiceDate: extractedData.date,
-                    totalAmount: extractedData.total,
+                    supplierName: extractedData.supplierName || undefined,
+                    invoiceNumber: extractedData.receiptNumber || undefined,
+                    invoiceDate: extractedData.date || undefined,
+                    totalAmount: extractedData.total || undefined,
                   },
                   confidenceScore: 0.85,
                   status: "reviewed" as const,
@@ -252,12 +337,13 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
               }
             }
 
+            setProcessingReceiptId(null);
             setIsUploading(false);
 
             if (failCount === 0) {
               Alert.alert(
-                "Success! 🎉",
-                `${successCount} receipt(s) processed successfully!\n\nTap any receipt below to review extracted data and add to inventory.`,
+                "Bulk Extraction Complete",
+                `${successCount} receipt(s) processed successfully!\n\nTap any receipt to review and add to inventory.`,
                 [{ text: "OK" }]
               );
             } else {
@@ -306,20 +392,37 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
     }
   };
 
-  const renderReceiptItem = ({ item }: { item: ScannedReceipt }) => (
-    <TouchableOpacity
-      onPress={() => {
-        // Navigate to Inventory stack's ReceiptUpload screen
-        // This ensures consistent behavior with the inventory tab
-        (navigation as any).navigate("InventoryStack", {
-          screen: "ReceiptUpload",
-          params: { receiptImageUrl: item.imageUrl }
-        });
-      }}
-      activeOpacity={0.7}
-    >
-      <Card style={styles.receiptCard}>
-        <View style={styles.receiptContent}>
+  const getStatusText = (status: ScannedReceipt["status"]) => {
+    switch (status) {
+      case "pending":
+        return "Pending Extraction";
+      case "reviewed":
+        return "Data Extracted";
+      case "confirmed":
+        return "Added to Inventory";
+      default:
+        return status;
+    }
+  };
+
+  const navigateToReceiptDetail = (receipt: ScannedReceipt) => {
+    (navigation as any).navigate("InventoryStack", {
+      screen: "ReceiptUpload",
+      params: { receiptId: receipt.id, receiptImageUrl: receipt.imageUrl }
+    });
+  };
+
+  const renderReceiptItem = ({ item }: { item: ScannedReceipt }) => {
+    const isProcessing = processingReceiptId === item.id;
+    const hasExtractedData = item.status === "reviewed" && item.extractedData?.items && item.extractedData.items.length > 0;
+    
+    return (
+      <View style={[styles.receiptCard, { backgroundColor: theme.surface }]}>
+        <TouchableOpacity 
+          style={styles.receiptContent}
+          onPress={() => navigateToReceiptDetail(item)}
+          activeOpacity={0.7}
+        >
           <View style={styles.receiptIcon}>
             {item.imageUrl ? (
               <Image source={{ uri: item.imageUrl }} style={styles.thumbnailImage} />
@@ -335,9 +438,9 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
                 {new Date(item.receiptDate).toLocaleDateString()}
               </ThemedText>
-              {item.confidenceScore > 0 && (
+              {item.extractedData?.items && item.extractedData.items.length > 0 && (
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                  {" "} - {Math.round(item.confidenceScore * 100)}% confidence
+                  {" "} - {item.extractedData.items.length} items
                 </ThemedText>
               )}
             </View>
@@ -346,7 +449,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
                 type="small"
                 style={{ color: getStatusColor(item.status), fontWeight: "600" }}
               >
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                {getStatusText(item.status)}
               </ThemedText>
             </View>
           </View>
@@ -360,10 +463,67 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
           >
             <Feather name="trash-2" size={20} color={Colors.accent.error} />
           </TouchableOpacity>
+        </TouchableOpacity>
+
+        <View style={[styles.actionRow, { borderTopColor: theme.divider }]}>
+          {item.status === "pending" && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: Colors.primary.main }]}
+              onPress={() => extractSingleReceipt(item)}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ThemedText type="small" style={{ color: "#FFFFFF", marginLeft: 8 }}>
+                    Extracting...
+                  </ThemedText>
+                </>
+              ) : (
+                <>
+                  <Feather name="cpu" size={16} color="#FFFFFF" />
+                  <ThemedText type="small" style={{ color: "#FFFFFF", marginLeft: 8, fontWeight: "600" }}>
+                    Extract Data
+                  </ThemedText>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {hasExtractedData && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: Colors.accent.success }]}
+              onPress={() => navigateToReceiptDetail(item)}
+            >
+              <Feather name="plus" size={16} color="#FFFFFF" />
+              <ThemedText type="small" style={{ color: "#FFFFFF", marginLeft: 8, fontWeight: "600" }}>
+                View & Add to Inventory
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
+          {item.status === "confirmed" && (
+            <View style={[styles.completedBadge, { backgroundColor: Colors.accent.success + "20" }]}>
+              <Feather name="check-circle" size={16} color={Colors.accent.success} />
+              <ThemedText type="small" style={{ color: Colors.accent.success, marginLeft: 8, fontWeight: "600" }}>
+                Completed
+              </ThemedText>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.viewButton, { borderColor: theme.divider }]}
+            onPress={() => navigateToReceiptDetail(item)}
+          >
+            <Feather name="eye" size={16} color={Colors.primary.main} />
+            <ThemedText type="small" style={{ color: Colors.primary.main, marginLeft: 8 }}>
+              View
+            </ThemedText>
+          </TouchableOpacity>
         </View>
-      </Card>
-    </TouchableOpacity>
-  );
+      </View>
+    );
+  };
 
   const pendingCount = receipts.filter((r) => r.status === "pending").length;
 
@@ -406,7 +566,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
             <View style={[styles.actionIconContainer, { backgroundColor: Colors.primary.main }]}>
               <Feather name="camera" size={28} color="#FFFFFF" />
             </View>
-            <ThemedText type="subtitle" style={styles.actionTitle}>
+            <ThemedText type="body" style={[styles.actionTitle, { fontWeight: "600" }]}>
               Take Photo
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center" }}>
@@ -422,7 +582,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
             <View style={[styles.actionIconContainer, { backgroundColor: Colors.secondary.main }]}>
               <Feather name="image" size={28} color="#FFFFFF" />
             </View>
-            <ThemedText type="subtitle" style={styles.actionTitle}>
+            <ThemedText type="body" style={[styles.actionTitle, { fontWeight: "600" }]}>
               From Gallery
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center" }}>
@@ -432,13 +592,13 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
         </View>
 
         <TouchableOpacity
-          style={[styles.uploadCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          style={[styles.uploadCard, { backgroundColor: theme.surface, borderColor: theme.divider }]}
           onPress={pickPDFDocuments}
           activeOpacity={0.7}
           disabled={isUploading}
         >
           <Feather name="upload-cloud" size={40} color={Colors.primary.main} />
-          <ThemedText type="subtitle" style={{ marginTop: Spacing.md }}>
+          <ThemedText type="body" style={{ marginTop: Spacing.md, fontWeight: "600" }}>
             {isUploading ? "Uploading..." : "Upload PDF Files"}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center", marginTop: Spacing.xs }}>
@@ -448,16 +608,17 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
         {pendingCount > 0 && (
           <Button
-            title={`Bulk Extract Data (${pendingCount})`}
-            onPress={processReceipts}
+            onPress={processAllPending}
             style={styles.processButton}
             icon="zap"
-          />
+          >
+            Bulk Extract Data ({pendingCount})
+          </Button>
         )}
 
         <View style={styles.receiptsSection}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">
+            <ThemedText type="body" style={{ fontWeight: "600" }}>
               Database Receipts ({receipts.length})
             </ThemedText>
             <TouchableOpacity onPress={loadReceipts} style={styles.refreshButton}>
@@ -469,7 +630,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
             <EmptyState
               icon="file-text"
               title="No Receipts Yet"
-              message="Take a photo or upload PDF files to get started. All receipts are saved to your Supabase database."
+              description="Take a photo or upload PDF files to get started. All receipts are saved to your Supabase database."
             />
           ) : (
             <FlatList
@@ -477,7 +638,7 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
               renderItem={renderReceiptItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
             />
           )}
         </View>
@@ -552,11 +713,13 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   receiptCard: {
-    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    overflow: "hidden",
   },
   receiptContent: {
     flexDirection: "row",
     alignItems: "center",
+    padding: Spacing.md,
   },
   receiptIcon: {
     width: 50,
@@ -592,5 +755,36 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: Spacing.sm,
+  },
+  actionRow: {
+    flexDirection: "row",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    gap: Spacing.sm,
+    flexWrap: "wrap",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  viewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginLeft: "auto",
+  },
+  completedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
   },
 });

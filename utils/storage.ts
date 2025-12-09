@@ -462,6 +462,10 @@ export const UserStorage = {
 };
 
 export const ReceiptStorage = {
+  async getById(id: string): Promise<ScannedReceipt | null> {
+    const receipts = await this.getAll();
+    return receipts.find((r) => r.id === id) || null;
+  },
   async getAll(): Promise<ScannedReceipt[]> {
     if (isSupabaseConfigured()) {
       try {
