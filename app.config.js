@@ -1,7 +1,6 @@
-
 export default {
   expo: {
-    name: "AgroVet POS",
+    name: "Agrovet POS - Agrisols Systems",
     slug: "agrovet-pos",
     version: "1.0.0",
     orientation: "portrait",
