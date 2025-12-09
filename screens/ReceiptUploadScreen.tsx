@@ -100,13 +100,26 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
 
     setIsProcessing(true);
     try {
+      console.log("Starting receipt extraction for image:", selectedImage);
       const data = await extractReceiptData(selectedImage);
+      console.log("Extraction successful:", data);
+      
+      if (!data || !data.items || data.items.length === 0) {
+        Alert.alert(
+          "No Data Found",
+          "Could not extract any items from the receipt. Please ensure the image is clear and contains visible product information, or enter data manually."
+        );
+        setIsProcessing(false);
+        return;
+      }
+      
       setExtractedData(data);
     } catch (error) {
       console.error("Receipt processing error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       Alert.alert(
         "Processing Error", 
-        "Failed to extract data from the receipt. Please ensure the image is clear and try again, or enter data manually."
+        `Failed to extract data from the receipt:\n\n${errorMessage}\n\nPlease ensure:\n- The image is clear and well-lit\n- Text is readable\n- You have a valid OpenAI API key in Secrets`
       );
     } finally {
       setIsProcessing(false);
@@ -136,22 +149,17 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
                 ? `\nStock added: ${result.stockAdded} units`
                 : "";
 
-              Alert.alert(
-                "Success",
-                `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}`,
-                [{ text: "OK", onPress: () => {
-                  clearSelection();
-                  // Show success alert after clearing
-                  setTimeout(() => {
-                    Alert.alert(
-                      "Success",
-                      processingMode === "historical"
-                        ? "Price history has been recorded successfully"
-                        : "Items added to inventory successfully"
-                    );
-                  }, 100);
-                } }]
-              );
+              // Clear the selection immediately
+              clearSelection();
+              
+              // Show success message
+              setTimeout(() => {
+                Alert.alert(
+                  "Success! ✅",
+                  `Receipt processed successfully!\n\nNew products: ${result.newProductsCreated}\nUpdated products: ${result.existingProductsUpdated}\nPrice records added: ${result.priceRecordsAdded}${stockMessage}\n\n${processingMode === "historical" ? "Price history recorded" : "Items added to inventory"}`,
+                  [{ text: "OK" }]
+                );
+              }, 100);
             } catch (error) {
               console.error("Error processing receipt:", error);
               const errorMessage = error instanceof Error ? error.message : "Failed to process receipt";

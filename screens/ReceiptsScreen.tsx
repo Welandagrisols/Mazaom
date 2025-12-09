@@ -308,7 +308,14 @@ export default function ReceiptsScreen({ navigation }: ReceiptsScreenProps) {
 
   const renderReceiptItem = ({ item }: { item: ScannedReceipt }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate("ReceiptUpload" as any, { receiptImageUrl: item.imageUrl })}
+      onPress={() => {
+        // Navigate to Inventory stack's ReceiptUpload screen
+        // This ensures consistent behavior with the inventory tab
+        (navigation as any).navigate("InventoryStack", {
+          screen: "ReceiptUpload",
+          params: { receiptImageUrl: item.imageUrl }
+        });
+      }}
       activeOpacity={0.7}
     >
       <Card style={styles.receiptCard}>

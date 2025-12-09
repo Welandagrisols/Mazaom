@@ -45,11 +45,19 @@ export interface ExtractedReceiptData {
 
 export async function extractReceiptData(imageUri: string): Promise<ExtractedReceiptData> {
   try {
+    console.log('[OpenAI] Starting extraction for image:', imageUri.substring(0, 50) + '...');
+    
     let base64Image: string;
     
     if (imageUri.startsWith('data:')) {
       base64Image = imageUri;
+      console.log('[OpenAI] Using data URI directly');
+    } else if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+      // For cloud URLs, pass directly to OpenAI
+      base64Image = imageUri;
+      console.log('[OpenAI] Using cloud URL directly');
     } else {
+      console.log('[OpenAI] Reading local file as base64');
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
@@ -57,6 +65,7 @@ export async function extractReceiptData(imageUri: string): Promise<ExtractedRec
       base64Image = `data:${mimeType};base64,${base64}`;
     }
 
+    console.log('[OpenAI] Calling OpenAI API with gpt-4o model');
     const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -114,25 +123,37 @@ If you cannot read certain values, use reasonable defaults or null. Prices shoul
       temperature: 0.1,
     });
 
+    console.log('[OpenAI] Received response from API');
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error('No response from OpenAI');
+      throw new Error('No response from OpenAI API. Please check your API key and try again.');
     }
 
+    console.log('[OpenAI] Response content:', content.substring(0, 200) + '...');
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Could not parse JSON from response');
+      console.error('[OpenAI] Could not find JSON in response:', content);
+      throw new Error('Could not parse JSON from OpenAI response. The image may not contain readable receipt data.');
     }
 
     const extractedData = JSON.parse(jsonMatch[0]) as ExtractedReceiptData;
+    console.log('[OpenAI] Successfully parsed data. Items found:', extractedData.items?.length || 0);
     
     if (!extractedData.items) {
       extractedData.items = [];
     }
 
+    if (extractedData.items.length === 0) {
+      console.warn('[OpenAI] No items extracted from receipt');
+    }
+
     return extractedData;
   } catch (error) {
-    console.error('OpenAI Vision Error:', error);
+    console.error('[OpenAI] Vision Error:', error);
+    if (error instanceof Error) {
+      // Re-throw with more context
+      throw new Error(`OpenAI extraction failed: ${error.message}`);
+    }
     throw error;
   }
 }
