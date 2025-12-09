@@ -17,7 +17,7 @@ type AddCustomerScreenProps = {
 
 export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps) {
   const { theme } = useTheme();
-  const { addCustomer } = useApp();
+  const { addCustomer, customers } = useApp();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,6 +34,16 @@ export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps
     }
     if (!phone.trim()) {
       Alert.alert("Error", "Please enter a phone number");
+      return;
+    }
+
+    const existingCustomer = customers.find(c => c.phone === phone.trim());
+    if (existingCustomer) {
+      Alert.alert(
+        "Customer Already Exists",
+        `A customer named "${existingCustomer.name}" with this phone number already exists. Please select them from the customer list instead of creating a new one.`,
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
       return;
     }
 
@@ -62,7 +72,7 @@ export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps
     } finally {
       setIsLoading(false);
     }
-  }, [name, phone, email, address, customerType, creditLimit, addCustomer, navigation]);
+  }, [name, phone, email, address, customerType, creditLimit, addCustomer, navigation, customers]);
 
   const customerTypes: { key: Customer["customerType"]; label: string }[] = [
     { key: "retail", label: "Retail" },

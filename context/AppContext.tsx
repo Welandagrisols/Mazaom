@@ -321,6 +321,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addCustomer = useCallback(
     async (customerData: Omit<Customer, "id">): Promise<boolean> => {
+      const existingCustomer = customers.find(
+        c => c.phone === customerData.phone
+      );
+      
+      if (existingCustomer) {
+        return false;
+      }
+      
       const customer: Customer = {
         ...customerData,
         id: generateId(),
@@ -331,7 +339,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return success;
     },
-    []
+    [customers]
   );
 
   const updateCustomer = useCallback(async (customer: Customer): Promise<boolean> => {
