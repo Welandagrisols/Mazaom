@@ -1,29 +1,31 @@
+
 export default {
   expo: {
     name: "AgroVet POS",
-    slug: "my-app",
+    slug: "agrovet-pos",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "myapp",
+    scheme: "agrovetpos",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
       image: "./assets/images/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#2E7D32"
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.anonymous.myapp"
+      bundleIdentifier: "com.agrovetpos.app"
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/images/android-icon-foreground.png",
-        monochromeImage: "./assets/images/android-icon-monochrome.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#2E7D32",
+        foregroundImage: "./assets/images/icon.png"
       },
-      package: "com.anonymous.myapp",
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      package: "com.agrovetpos.app",
       permissions: [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -32,19 +34,31 @@ export default {
     },
     web: {
       bundler: "metro",
-      output: "static",
+      output: "single",
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
       [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: "#2E7D32",
+          dark: {
+            backgroundColor: "#1B5E20"
+          }
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload receipts"
+          photosPermission: "Allow $(PRODUCT_NAME) to access your photos to upload receipts"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     experiments: {
-      typedRoutes: false,
       reactCompiler: true
     },
     extra: {
