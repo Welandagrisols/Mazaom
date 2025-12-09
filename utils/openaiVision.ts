@@ -3,10 +3,25 @@ import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
 
 const getApiKey = (): string => {
-  return process.env.OPENAI_API_KEY || 
-         Constants.expoConfig?.extra?.openaiApiKey || 
-         (typeof window !== 'undefined' && (window as unknown as Record<string, string>).OPENAI_API_KEY) ||
-         '';
+  // Check multiple sources for API key
+  const envKey = process.env.OPENAI_API_KEY;
+  const expoKey = Constants.expoConfig?.extra?.openaiApiKey;
+  const windowKey = typeof window !== 'undefined' && (window as unknown as Record<string, string>).OPENAI_API_KEY;
+  
+  const apiKey = envKey || expoKey || windowKey || '';
+  
+  if (!apiKey) {
+    console.error('[OpenAI] API key not found in any source');
+    console.log('[OpenAI] Checked:', {
+      hasEnvKey: !!envKey,
+      hasExpoKey: !!expoKey,
+      hasWindowKey: !!windowKey,
+    });
+  } else {
+    console.log('[OpenAI] API key found, length:', apiKey.length);
+  }
+  
+  return apiKey;
 };
 
 let _openai: OpenAI | null = null;
@@ -47,6 +62,13 @@ export async function extractReceiptData(imageUri: string): Promise<ExtractedRec
   try {
     console.log('[OpenAI] Starting extraction for image:', imageUri.substring(0, 50) + '...');
     
+    // Verify API key before proceeding
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured. Please ensure OPENAI_API_KEY is set in your environment variables or Replit Secrets.');
+    }
+    console.log('[OpenAI] API key verified');
+    
     let base64Image: string;
     
     if (imageUri.startsWith('data:')) {
@@ -58,15 +80,25 @@ export async function extractReceiptData(imageUri: string): Promise<ExtractedRec
       console.log('[OpenAI] Using cloud URL directly');
     } else {
       console.log('[OpenAI] Reading local file as base64');
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
-      base64Image = `data:${mimeType};base64,${base64}`;
+      try {
+        const base64 = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+        base64Image = `data:${mimeType};base64,${base64}`;
+        console.log('[OpenAI] Successfully converted to base64, size:', base64.length);
+      } catch (fileError) {
+        console.error('[OpenAI] Error reading file:', fileError);
+        throw new Error(`Failed to read image file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+      }
     }
 
     console.log('[OpenAI] Calling OpenAI API with gpt-4o model');
-    const response = await getOpenAI().chat.completions.create({
+    console.log('[OpenAI] Image type:', base64Image.startsWith('data:') ? 'base64' : 'URL');
+    
+    let response;
+    try {
+      response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
@@ -122,6 +154,21 @@ If you cannot read certain values, use reasonable defaults or null. Prices shoul
       max_tokens: 2000,
       temperature: 0.1,
     });
+    } catch (apiError) {
+      console.error('[OpenAI] API call failed:', apiError);
+      if (apiError instanceof Error) {
+        // Check for common API errors
+        if (apiError.message.includes('401') || apiError.message.includes('authentication')) {
+          throw new Error('OpenAI API authentication failed. Please check that your API key is valid and has sufficient credits.');
+        } else if (apiError.message.includes('429')) {
+          throw new Error('OpenAI API rate limit exceeded. Please wait a moment and try again.');
+        } else if (apiError.message.includes('network') || apiError.message.includes('fetch')) {
+          throw new Error('Network error: Unable to reach OpenAI API. Please check your internet connection.');
+        }
+        throw new Error(`OpenAI API error: ${apiError.message}`);
+      }
+      throw new Error('Failed to call OpenAI API. Please try again.');
+    }
 
     console.log('[OpenAI] Received response from API');
     const content = response.choices[0]?.message?.content;
