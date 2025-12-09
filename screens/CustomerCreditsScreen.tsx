@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { View, StyleSheet, FlatList, Pressable, Modal, TextInput, Alert, Linking } from "react-native";
+import { View, StyleSheet, FlatList, Pressable, Modal, TextInput, Alert, Linking, ScrollView } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -548,6 +548,7 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
               </Pressable>
             </View>
 
+            <ScrollView showsVerticalScrollIndicator={false}>
             {selectedCustomer && (
               <View style={[styles.customerSummary, { backgroundColor: theme.surface }]}>
                 <ThemedText type="body" style={{ fontWeight: "600" }}>
@@ -634,6 +635,7 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
             >
               Record Payment
             </Button>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -653,6 +655,7 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
               </Pressable>
             </View>
 
+            <ScrollView showsVerticalScrollIndicator={false}>
             {selectedCustomer && (
               <View style={[styles.customerSummary, { backgroundColor: theme.surface }]}>
                 <ThemedText type="body" style={{ fontWeight: "600" }}>
@@ -779,6 +782,7 @@ export default function CustomerCreditsScreen({ navigation, route }: CustomerCre
             >
               Apply Adjustment
             </Button>
+            </ScrollView>
           </View>
         </View>
       </Modal>
