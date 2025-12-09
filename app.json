@@ -44,12 +44,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "supabaseUrl": "${SUPABASE_URL}",
-      "supabaseAnonKey": "${SUPABASE_ANON_KEY}",
-      "openaiApiKey": "${OPENAI_API_KEY}",
       "eas": {
-        "projectId": "4978aa1b-9880-4fb1-ad30-c1257e9e782f"
-      }
+        "projectId": "b261aa14-f278-4477-a57b-5391c7d05069"
+      },
+      "supabaseUrl": process.env.SUPABASE_URL,
+      "supabaseAnonKey": process.env.SUPABASE_ANON_KEY
     }
   }
 }
