@@ -15,10 +15,12 @@ import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { formatCurrency, formatPhone } from "@/utils/format";
 import { Customer, CreditTransaction } from "@/types";
+import { RouteProp } from "@react-navigation/native";
 import { MoreStackParamList } from "@/navigation/MoreStackNavigator";
 
 type CustomerCreditsScreenProps = {
   navigation: NativeStackNavigationProp<MoreStackParamList, "CustomerCredits">;
+  route: RouteProp<MoreStackParamList, "CustomerCredits">;
 };
 
 const PAYMENT_OPTIONS = [
@@ -27,7 +29,7 @@ const PAYMENT_OPTIONS = [
   { id: "bank", name: "Bank Transfer", icon: "credit-card" },
 ];
 
-export default function CustomerCreditsScreen({ navigation }: CustomerCreditsScreenProps) {
+export default function CustomerCreditsScreen({ navigation, route }: CustomerCreditsScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
@@ -41,6 +43,16 @@ export default function CustomerCreditsScreen({ navigation }: CustomerCreditsScr
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // Pre-select customer if passed via route params
+  React.useEffect(() => {
+    if (route.params?.customerId) {
+      const customer = customers.find(c => c.id === route.params.customerId);
+      if (customer) {
+        setSelectedCustomer(customer);
+      }
+    }
+  }, [route.params?.customerId, customers]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");

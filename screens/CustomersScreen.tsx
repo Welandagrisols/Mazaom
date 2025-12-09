@@ -55,7 +55,7 @@ export default function CustomersScreen({ navigation }: CustomersScreenProps) {
 
     return (
       <Pressable
-        onPress={() => navigation.navigate("CustomerCredits")}
+        onPress={() => navigation.navigate("CustomerCredits", { customerId: item.id })}
         style={({ pressed }) => [
           styles.customerCard,
           { backgroundColor: theme.surface, opacity: pressed ? 0.9 : 1 },

@@ -21,7 +21,7 @@ export type MoreStackParamList = {
   AddCustomer: undefined;
   AddSupplier: undefined;
   Receipts: undefined;
-  CustomerCredits: undefined;
+  CustomerCredits: { customerId?: string };
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
