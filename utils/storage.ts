@@ -696,10 +696,12 @@ function mapProductToDb(product: Product) {
     active: product.active,
     created_at: product.createdAt,
     updated_at: product.updatedAt,
+    item_type: product.itemType || 'unit',
     is_bulk_item: product.isBulkItem || false,
     package_weight: product.packageWeight || null,
     price_per_kg: product.pricePerKg || null,
     cost_per_kg: product.costPerKg || null,
+    bulk_unit: product.bulkUnit || null,
   };
 }
 
@@ -720,10 +722,12 @@ function mapDbToProduct(data: Record<string, unknown>): Product {
     active: data.active as boolean,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
+    itemType: (data.item_type as Product['itemType']) || 'unit',
     isBulkItem: data.is_bulk_item as boolean | undefined,
     packageWeight: data.package_weight as number | undefined,
     pricePerKg: data.price_per_kg as number | undefined,
     costPerKg: data.cost_per_kg as number | undefined,
+    bulkUnit: data.bulk_unit as string | undefined,
   };
 }
 
