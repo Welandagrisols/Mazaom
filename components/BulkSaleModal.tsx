@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, TextInput, Modal, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
@@ -18,7 +17,7 @@ interface BulkSaleModalProps {
 
 export function BulkSaleModal({ visible, product, onClose, onAddToCart }: BulkSaleModalProps) {
   const { theme } = useTheme();
-  
+
   const [inputMode, setInputMode] = useState<"weight" | "price">("weight");
   const [weightInput, setWeightInput] = useState("");
   const [priceInput, setPriceInput] = useState("");
@@ -69,21 +68,29 @@ export function BulkSaleModal({ visible, product, onClose, onAddToCart }: BulkSa
   }, [priceInput, inputMode, pricePerKg]);
 
   const handleAddToCart = useCallback(() => {
-    if (calculatedWeight <= 0 || calculatedPrice <= 0) {
-      Alert.alert("Invalid Input", "Please enter a valid weight or price");
-      return;
-    }
+    try {
+      const weight = parseFloat(weightInput);
+      if (isNaN(weight) || weight <= 0) {
+        Alert.alert("Error", "Please enter a valid weight");
+        return;
+      }
 
-    if (product?.packageWeight && calculatedWeight > product.packageWeight) {
-      Alert.alert(
-        "Weight Exceeds Package",
-        `Weight cannot exceed ${product.packageWeight} kg per package`
-      );
-      return;
-    }
+      // Assuming product.packageWeight is the maximum allowed weight for bulk sale
+      const maxWeight = product?.packageWeight || Infinity; 
 
-    onAddToCart(calculatedWeight, calculatedPrice);
-  }, [calculatedWeight, calculatedPrice, product, onAddToCart]);
+      if (weight > maxWeight) {
+        Alert.alert("Error", `Maximum available weight is ${maxWeight.toFixed(2)} ${product.bulkUnit || 'kg'}`);
+        return;
+      }
+
+      const totalPrice = weight * pricePerKg;
+      onAddToCart(weight, totalPrice);
+      setWeightInput(""); // Clear input after successful add
+    } catch (error) {
+      console.error("Error adding bulk item to cart:", error);
+      Alert.alert("Error", "Failed to add item to cart");
+    }
+  }, [weightInput, pricePerKg, product, onAddToCart]);
 
   if (!product) return null;
 

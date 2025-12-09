@@ -55,34 +55,45 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
   );
 
   const handleCompleteSale = useCallback(async () => {
-    if (cart.length === 0) {
-      Alert.alert("Error", "Cart is empty");
-      return;
-    }
+    try {
+      if (cart.length === 0) {
+        Alert.alert("Error", "Cart is empty");
+        return;
+      }
 
-    if (creditSaleRequiresCustomer) {
-      Alert.alert("Customer Required", "Please select a customer for credit sales.");
-      return;
-    }
+      if (selectedPayment === "credit" && !selectedCustomer) {
+        Alert.alert("Customer Required", "Please select a customer for credit sales.");
+        return;
+      }
 
-    if (exceedsCreditLimit) {
-      Alert.alert(
-        "Credit Limit Exceeded",
-        `This sale would exceed ${selectedCustomerData?.name}'s credit limit of ${formatCurrency(customerCreditLimit)}. Current balance: ${formatCurrency(customerCurrentBalance)}. New balance would be: ${formatCurrency(newBalanceAfterSale)}.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Proceed Anyway", 
-            style: "destructive",
-            onPress: () => processCompleteSale()
+      if (selectedPayment === "credit" && selectedCustomer) {
+        const customer = customers.find((c) => c.id === selectedCustomer);
+        if (customer) {
+          const newBalance = customer.currentBalance + total;
+          if (newBalance > customer.creditLimit) {
+            Alert.alert(
+              "Credit Limit Exceeded",
+              `This sale would exceed ${customer.name}'s credit limit of ${formatCurrency(customer.creditLimit)}. Current balance: ${formatCurrency(customer.currentBalance)}. New balance would be: ${formatCurrency(newBalance)}.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Proceed Anyway",
+                  style: "destructive",
+                  onPress: () => processCompleteSale(),
+                },
+              ]
+            );
+            return;
           }
-        ]
-      );
-      return;
-    }
+        }
+      }
 
-    await processCompleteSale();
-  }, [cart, creditSaleRequiresCustomer, exceedsCreditLimit, selectedCustomerData, customerCreditLimit, customerCurrentBalance, newBalanceAfterSale]);
+      await processCompleteSale();
+    } catch (error) {
+      console.error("Error in handleCompleteSale:", error);
+      Alert.alert("Error", "Failed to process sale. Please check your details and try again.");
+    }
+  }, [cart, selectedPayment, selectedCustomer, customers, total, selectedCustomerData, customerCreditLimit, customerCurrentBalance, newBalanceAfterSale, processCompleteSale]);
 
   const processCompleteSale = useCallback(async () => {
     setIsProcessing(true);
@@ -97,7 +108,7 @@ export default function CheckoutScreen({ navigation }: CheckoutScreenProps) {
       if (transaction) {
         // Navigate back to POS screen first
         navigation.navigate("POS");
-        
+
         // Then show success alert
         Alert.alert(
           "Sale Complete",

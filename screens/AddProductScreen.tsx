@@ -102,6 +102,7 @@ export default function AddProductScreen({ navigation }: AddProductScreenProps) 
         Alert.alert("Error", "Failed to add product. Please try again.");
       }
     } catch (error) {
+      console.error("Error adding product:", error);
       Alert.alert("Error", "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);

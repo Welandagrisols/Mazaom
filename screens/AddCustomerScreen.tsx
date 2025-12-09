@@ -37,16 +37,6 @@ export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps
       return;
     }
 
-    const existingCustomer = customers.find(c => c.phone === phone.trim());
-    if (existingCustomer) {
-      Alert.alert(
-        "Customer Already Exists",
-        `A customer named "${existingCustomer.name}" with this phone number already exists. Please select them from the customer list instead of creating a new one.`,
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
-      return;
-    }
-
     setIsLoading(true);
     try {
       const success = await addCustomer({
@@ -65,14 +55,15 @@ export default function AddCustomerScreen({ navigation }: AddCustomerScreenProps
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert("Error", "Failed to add customer. Please try again.");
+        Alert.alert("Error", "A customer with this phone number already exists. Please use a different phone number.");
       }
     } catch (error) {
+      console.error("Error adding customer:", error);
       Alert.alert("Error", "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [name, phone, email, address, customerType, creditLimit, addCustomer, navigation, customers]);
+  }, [name, phone, email, address, customerType, creditLimit, addCustomer, navigation]);
 
   const customerTypes: { key: Customer["customerType"]; label: string }[] = [
     { key: "retail", label: "Retail" },

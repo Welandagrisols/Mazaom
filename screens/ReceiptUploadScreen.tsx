@@ -143,7 +143,8 @@ export default function ReceiptUploadScreen({ navigation, route }: ReceiptUpload
               );
             } catch (error) {
               console.error("Error processing receipt:", error);
-              Alert.alert("Error", "Failed to process receipt. Please try again.");
+              const errorMessage = error instanceof Error ? error.message : "Failed to process receipt";
+              Alert.alert("Error", `Failed to process receipt: ${errorMessage}`);
             } finally {
               setIsAddingToInventory(false);
             }

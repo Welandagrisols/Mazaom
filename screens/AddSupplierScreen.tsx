@@ -60,6 +60,7 @@ export default function AddSupplierScreen({ navigation }: AddSupplierScreenProps
         Alert.alert("Error", "Failed to add supplier. Please try again.");
       }
     } catch (error) {
+      console.error("Error adding supplier:", error);
       Alert.alert("Error", "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);

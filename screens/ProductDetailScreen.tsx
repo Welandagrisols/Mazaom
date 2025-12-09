@@ -214,7 +214,15 @@ export default function ProductDetailScreen({ route }: ProductDetailScreenProps)
       ) : null}
 
       <Button
-        onPress={() => addToCart(product)}
+        onPress={() => {
+          try {
+            addToCart(product);
+            Alert.alert("Success", "Product added to cart");
+          } catch (error) {
+            console.error("Error adding to cart:", error);
+            Alert.alert("Error", "Failed to add product to cart");
+          }
+        }}
         icon="shopping-cart"
         disabled={isOutOfStock}
         style={styles.addToCartButton}

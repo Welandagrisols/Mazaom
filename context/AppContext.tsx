@@ -321,23 +321,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addCustomer = useCallback(
     async (customerData: Omit<Customer, "id">): Promise<boolean> => {
-      const existingCustomer = customers.find(
-        c => c.phone === customerData.phone
-      );
-      
-      if (existingCustomer) {
+      try {
+        const existingCustomer = customers.find(
+          c => c.phone === customerData.phone
+        );
+        
+        if (existingCustomer) {
+          return false;
+        }
+        
+        const customer: Customer = {
+          ...customerData,
+          id: generateId(),
+        };
+        const success = await CustomerStorage.add(customer);
+        if (success) {
+          setCustomers((prev) => [...prev, customer]);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Error in addCustomer:", error);
         return false;
       }
-      
-      const customer: Customer = {
-        ...customerData,
-        id: generateId(),
-      };
-      const success = await CustomerStorage.add(customer);
-      if (success) {
-        setCustomers((prev) => [...prev, customer]);
-      }
-      return success;
     },
     [customers]
   );
