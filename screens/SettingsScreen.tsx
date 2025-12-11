@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Alert, Switch } from "react-native";
+import { View, StyleSheet, Alert, Switch, Platform } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -38,47 +38,77 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     ]);
   };
 
-  const handleClearData = () => {
-    Alert.alert(
-      "Warning: Delete All Data",
-      "This will PERMANENTLY delete ALL your data including:\n\n- All products\n- All customers\n- All suppliers\n- All transactions\n- All inventory records\n\nThis action CANNOT be undone. Your app will be completely empty after this.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "I Understand, Continue",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Final Confirmation",
-              "Are you absolutely sure? All data will be permanently deleted and cannot be recovered.",
-              [
-                { text: "No, Keep My Data", style: "cancel" },
-                {
-                  text: "Yes, Delete Everything",
-                  style: "destructive",
-                  onPress: async () => {
-                    setIsClearing(true);
-                    try {
-                      const success = await clearAllData();
-                      if (success) {
-                        await loadData();
-                        Alert.alert("Data Deleted", "All data has been permanently deleted. The app is now empty.");
-                      } else {
+  const handleClearData = async () => {
+    if (Platform.OS === 'web') {
+      const firstConfirm = window.confirm(
+        "WARNING: Delete All Data\n\nThis will PERMANENTLY delete ALL your data including:\n- All products\n- All customers\n- All suppliers\n- All transactions\n- All inventory records\n\nThis action CANNOT be undone. Your app will be completely empty after this.\n\nClick OK to continue."
+      );
+      
+      if (!firstConfirm) return;
+      
+      const secondConfirm = window.confirm(
+        "FINAL CONFIRMATION\n\nAre you absolutely sure? All data will be permanently deleted and cannot be recovered.\n\nClick OK to DELETE EVERYTHING."
+      );
+      
+      if (!secondConfirm) return;
+      
+      setIsClearing(true);
+      try {
+        const success = await clearAllData();
+        if (success) {
+          await loadData();
+          window.alert("All data has been permanently deleted. The app is now empty.");
+        } else {
+          window.alert("Failed to clear data. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error clearing data:", error);
+        window.alert("Failed to clear data. Please try again.");
+      } finally {
+        setIsClearing(false);
+      }
+    } else {
+      Alert.alert(
+        "Warning: Delete All Data",
+        "This will PERMANENTLY delete ALL your data including:\n\n- All products\n- All customers\n- All suppliers\n- All transactions\n- All inventory records\n\nThis action CANNOT be undone. Your app will be completely empty after this.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "I Understand, Continue",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Final Confirmation",
+                "Are you absolutely sure? All data will be permanently deleted and cannot be recovered.",
+                [
+                  { text: "No, Keep My Data", style: "cancel" },
+                  {
+                    text: "Yes, Delete Everything",
+                    style: "destructive",
+                    onPress: async () => {
+                      setIsClearing(true);
+                      try {
+                        const success = await clearAllData();
+                        if (success) {
+                          await loadData();
+                          Alert.alert("Data Deleted", "All data has been permanently deleted. The app is now empty.");
+                        } else {
+                          Alert.alert("Error", "Failed to clear data");
+                        }
+                      } catch (error) {
                         Alert.alert("Error", "Failed to clear data");
+                      } finally {
+                        setIsClearing(false);
                       }
-                    } catch (error) {
-                      Alert.alert("Error", "Failed to clear data");
-                    } finally {
-                      setIsClearing(false);
-                    }
+                    },
                   },
-                },
-              ]
-            );
+                ]
+              );
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   return (
