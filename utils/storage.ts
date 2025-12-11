@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   SETTINGS: "@agrovet_settings",
   PRICE_HISTORY: "@agrovet_price_history",
   CREDIT_TRANSACTIONS: "@agrovet_credit_transactions",
+  DATA_CLEARED: "@agrovet_data_cleared",
 };
 
 async function getItem<T>(key: string): Promise<T | null> {
@@ -612,11 +613,30 @@ export const CreditTransactionStorage = {
 
 export const clearAllData = async (): Promise<boolean> => {
   try {
-    await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
+    const keysToRemove = Object.values(STORAGE_KEYS).filter(key => key !== STORAGE_KEYS.DATA_CLEARED);
+    await AsyncStorage.multiRemove(keysToRemove);
+    await AsyncStorage.setItem(STORAGE_KEYS.DATA_CLEARED, "true");
     return true;
   } catch (error) {
     console.error("Error clearing all data:", error);
     return false;
+  }
+};
+
+export const wasDataCleared = async (): Promise<boolean> => {
+  try {
+    const value = await AsyncStorage.getItem(STORAGE_KEYS.DATA_CLEARED);
+    return value === "true";
+  } catch (error) {
+    return false;
+  }
+};
+
+export const resetDataClearedFlag = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.DATA_CLEARED);
+  } catch (error) {
+    console.error("Error resetting data cleared flag:", error);
   }
 };
 

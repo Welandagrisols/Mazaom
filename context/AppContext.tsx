@@ -11,6 +11,7 @@ import {
   CreditTransactionStorage,
   generateId,
   generateTransactionNumber,
+  wasDataCleared,
 } from "@/utils/storage";
 import { SAMPLE_PRODUCTS, SAMPLE_CUSTOMERS, SAMPLE_SUPPLIERS, generateSampleBatches } from "@/utils/sampleData";
 import { ExtractedReceiptData } from "@/utils/openaiVision";
@@ -73,6 +74,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      const dataWasCleared = await wasDataCleared();
+      
       let loadedProducts = await ProductStorage.getAll();
       let loadedCustomers = await CustomerStorage.getAll();
       let loadedSuppliers = await SupplierStorage.getAll();
@@ -82,30 +85,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const loadedPriceHistory = await PriceHistoryStorage.getAll();
       const loadedCreditTransactions = await CreditTransactionStorage.getAll();
 
-      if (loadedProducts.length === 0) {
-        loadedProducts = SAMPLE_PRODUCTS;
-        await ProductStorage.save(loadedProducts);
+      if (!dataWasCleared) {
+        if (loadedProducts.length === 0) {
+          loadedProducts = SAMPLE_PRODUCTS;
+          await ProductStorage.save(loadedProducts);
+        }
+
+        if (loadedCustomers.length === 0) {
+          loadedCustomers = SAMPLE_CUSTOMERS;
+          await CustomerStorage.save(loadedCustomers);
+        }
+
+        if (loadedSuppliers.length === 0) {
+          loadedSuppliers = SAMPLE_SUPPLIERS;
+          await SupplierStorage.save(loadedSuppliers);
+        }
+
+        if (loadedBatches.length === 0 && loadedProducts.length > 0) {
+          loadedBatches = generateSampleBatches(loadedProducts);
+          await BatchStorage.save(loadedBatches);
+        }
       }
 
       loadedProducts = loadedProducts.map(p => ({
         ...p,
         itemType: p.itemType || (p.isBulkItem ? 'bulk' : 'unit'),
       }));
-
-      if (loadedCustomers.length === 0) {
-        loadedCustomers = SAMPLE_CUSTOMERS;
-        await CustomerStorage.save(loadedCustomers);
-      }
-
-      if (loadedSuppliers.length === 0) {
-        loadedSuppliers = SAMPLE_SUPPLIERS;
-        await SupplierStorage.save(loadedSuppliers);
-      }
-
-      if (loadedBatches.length === 0) {
-        loadedBatches = generateSampleBatches(loadedProducts);
-        await BatchStorage.save(loadedBatches);
-      }
 
       setProducts(loadedProducts);
       setCustomers(loadedCustomers);

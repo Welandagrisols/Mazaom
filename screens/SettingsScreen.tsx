@@ -40,24 +40,36 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
   const handleClearData = () => {
     Alert.alert(
-      "Clear All Data",
-      "This will delete all products, customers, suppliers, and transactions. This action cannot be undone.",
+      "Warning: Delete All Data",
+      "This will PERMANENTLY delete ALL your data including:\n\n- All products\n- All customers\n- All suppliers\n- All transactions\n- All inventory records\n\nThis action CANNOT be undone. Your app will be completely empty after this.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Clear Data",
+          text: "I Understand, Continue",
           style: "destructive",
-          onPress: async () => {
-            setIsClearing(true);
-            try {
-              await clearAllData();
-              await loadData();
-              Alert.alert("Success", "All data has been cleared");
-            } catch (error) {
-              Alert.alert("Error", "Failed to clear data");
-            } finally {
-              setIsClearing(false);
-            }
+          onPress: () => {
+            Alert.alert(
+              "Final Confirmation",
+              "Are you absolutely sure? All data will be permanently deleted and cannot be recovered.",
+              [
+                { text: "No, Keep My Data", style: "cancel" },
+                {
+                  text: "Yes, Delete Everything",
+                  style: "destructive",
+                  onPress: async () => {
+                    setIsClearing(true);
+                    try {
+                      await clearAllData();
+                      Alert.alert("Data Deleted", "All data has been permanently deleted. The app is now empty.");
+                    } catch (error) {
+                      Alert.alert("Error", "Failed to clear data");
+                    } finally {
+                      setIsClearing(false);
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
