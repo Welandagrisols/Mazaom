@@ -613,9 +613,30 @@ export const CreditTransactionStorage = {
 
 export const clearAllData = async (): Promise<boolean> => {
   try {
+    // Clear local AsyncStorage
     const keysToRemove = Object.values(STORAGE_KEYS).filter(key => key !== STORAGE_KEYS.DATA_CLEARED);
     await AsyncStorage.multiRemove(keysToRemove);
     await AsyncStorage.setItem(STORAGE_KEYS.DATA_CLEARED, "true");
+    
+    // Clear Supabase tables if configured
+    if (isSupabaseConfigured()) {
+      try {
+        // Delete all data from Supabase tables
+        // Using neq with a condition that matches all rows
+        await supabase.from('transactions').delete().neq('id', '');
+        await supabase.from('inventory_batches').delete().neq('id', '');
+        await supabase.from('products').delete().neq('id', '');
+        await supabase.from('customers').delete().neq('id', '');
+        await supabase.from('suppliers').delete().neq('id', '');
+        await supabase.from('scanned_receipts').delete().neq('id', '');
+        await supabase.from('price_history').delete().neq('id', '');
+        console.log('All Supabase data cleared successfully');
+      } catch (supabaseError) {
+        console.error('Error clearing Supabase data:', supabaseError);
+        // Continue even if Supabase clear fails - local data is already cleared
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error("Error clearing all data:", error);
