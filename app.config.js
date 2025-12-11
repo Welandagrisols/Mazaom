@@ -61,9 +61,6 @@ export default {
       reactCompiler: true
     },
     extra: {
-      eas: {
-        projectId: "b261aa14-f278-4477-a57b-5391c7d05069"
-      },
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY
     }
