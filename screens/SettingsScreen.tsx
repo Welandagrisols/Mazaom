@@ -59,8 +59,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
                   onPress: async () => {
                     setIsClearing(true);
                     try {
-                      await clearAllData();
-                      Alert.alert("Data Deleted", "All data has been permanently deleted. The app is now empty.");
+                      const success = await clearAllData();
+                      if (success) {
+                        await loadData();
+                        Alert.alert("Data Deleted", "All data has been permanently deleted. The app is now empty.");
+                      } else {
+                        Alert.alert("Error", "Failed to clear data");
+                      }
                     } catch (error) {
                       Alert.alert("Error", "Failed to clear data");
                     } finally {
