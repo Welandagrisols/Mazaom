@@ -188,3 +188,40 @@ export interface CreditTransaction {
   createdAt: string;
   createdBy?: string;
 }
+
+// Multi-tenant types
+export type UserRole = "admin" | "manager" | "cashier";
+
+export interface Shop {
+  id: string;
+  name: string;
+  logo?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  taxId?: string;
+  currency: string;
+  receiptFooter?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  shopId: string;
+  role: UserRole;
+  active: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+export interface UserRole_DB {
+  id: string;
+  userId: string;
+  shopId: string;
+  role: UserRole;
+  createdAt: string;
+}

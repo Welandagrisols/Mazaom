@@ -9,6 +9,7 @@ import AddCustomerScreen from "@/screens/AddCustomerScreen";
 import AddSupplierScreen from "@/screens/AddSupplierScreen";
 import ReceiptsScreen from "@/screens/ReceiptsScreen";
 import CustomerCreditsScreen from "@/screens/CustomerCreditsScreen";
+import UserManagementScreen from "@/screens/UserManagementScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "@/navigation/screenOptions";
 
@@ -22,6 +23,7 @@ export type MoreStackParamList = {
   AddSupplier: undefined;
   Receipts: undefined;
   CustomerCredits: { customerId?: string };
+  UserManagement: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -98,6 +100,13 @@ export default function MoreStackNavigator() {
         component={CustomerCreditsScreen}
         options={{
           headerTitle: "Customer Credits",
+        }}
+      />
+      <Stack.Screen
+        name="UserManagement"
+        component={UserManagementScreen}
+        options={{
+          headerTitle: "Team Management",
         }}
       />
     </Stack.Navigator>

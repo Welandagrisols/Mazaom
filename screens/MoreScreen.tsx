@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -10,6 +10,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { MenuListItem } from "@/components/MenuListItem";
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
 import { getGreeting } from "@/utils/format";
 import { MoreStackParamList } from "@/navigation/MoreStackNavigator";
@@ -22,9 +23,21 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { user, customers, suppliers, transactions, getTotalOutstandingDebt, getCustomersWithDebt } = useApp();
+  const { customers, suppliers, transactions, getTotalOutstandingDebt, getCustomersWithDebt } = useApp();
+  const { user, shop, logout, hasPermission } = useAuth();
   const customersWithDebt = getCustomersWithDebt();
   const totalDebt = getTotalOutstandingDebt();
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Logout", style: "destructive", onPress: () => logout() },
+      ]
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -48,7 +61,7 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
               {user?.fullName || "Guest User"}
             </ThemedText>
             <ThemedText type="small" style={{ color: "rgba(255,255,255,0.8)" }}>
-              {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Cashier"}
+              {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Cashier"} - {shop?.name || "Mazao Animal Supplies"}
             </ThemedText>
           </View>
         </View>
@@ -96,6 +109,21 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
           onPress={() => navigation.navigate("Receipts")}
         />
 
+        {hasPermission("admin") && (
+          <>
+            <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+              Administration
+            </ThemedText>
+            <MenuListItem
+              title="Team Management"
+              subtitle="Manage staff accounts and roles"
+              icon="users"
+              iconColor={Colors.accent.warning}
+              onPress={() => navigation.navigate("UserManagement")}
+            />
+          </>
+        )}
+
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           System
         </ThemedText>
@@ -104,6 +132,13 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
           subtitle="App preferences and configuration"
           icon="settings"
           onPress={() => navigation.navigate("Settings")}
+        />
+        <MenuListItem
+          title="Logout"
+          subtitle={`Signed in as ${user?.email || "guest"}`}
+          icon="log-out"
+          iconColor={Colors.accent.error}
+          onPress={handleLogout}
         />
       </ScrollView>
     </ThemedView>
