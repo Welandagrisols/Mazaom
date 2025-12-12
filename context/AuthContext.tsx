@@ -1,21 +1,43 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { getSupabase, isSupabaseConfigured } from "@/utils/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AuthUser, Shop, UserRole } from "@/types";
+import { AuthUser, Shop, UserRole, StaffMember } from "@/types";
 
 const AUTH_STORAGE_KEY = "@agrovet_auth_user";
 const SHOP_STORAGE_KEY = "@agrovet_current_shop";
+const LOCK_TIMESTAMP_KEY = "@agrovet_lock_timestamp";
+const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
 
 interface AuthContextType {
   user: AuthUser | null;
   shop: Shop | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string, shopName?: string) => Promise<{ success: boolean; error?: string }>;
+  isLocked: boolean;
+  staffList: StaffMember[];
+  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  staffLogin: (shopCode: string, pin: string) => Promise<{ success: boolean; error?: string }>;
+  unlockWithPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
+  signupWithLicense: (
+    licenseKey: string,
+    email: string,
+    password: string,
+    fullName: string,
+    shopName: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  lockScreen: () => void;
   updateUserProfile: (updates: Partial<AuthUser>) => Promise<boolean>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
+  createStaffMember: (
+    fullName: string,
+    pin: string,
+    role: UserRole
+  ) => Promise<{ success: boolean; error?: string; user?: StaffMember }>;
+  updateStaffPin: (userId: string, newPin: string) => Promise<{ success: boolean; error?: string }>;
+  loadStaffList: () => Promise<void>;
+  resetInactivityTimer: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,21 +48,86 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   cashier: 1,
 };
 
+function generateShopCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityTime = useRef<number>(Date.now());
+
+  const resetInactivityTimer = useCallback(() => {
+    lastActivityTime.current = Date.now();
+    if (inactivityTimer.current) {
+      clearTimeout(inactivityTimer.current);
+    }
+    if (user && !isLocked) {
+      inactivityTimer.current = setTimeout(() => {
+        setIsLocked(true);
+        AsyncStorage.setItem(LOCK_TIMESTAMP_KEY, Date.now().toString());
+      }, INACTIVITY_TIMEOUT);
+    }
+  }, [user, isLocked]);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active" && user) {
+        const timeSinceLastActivity = Date.now() - lastActivityTime.current;
+        if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
+          setIsLocked(true);
+        } else {
+          resetInactivityTimer();
+        }
+      } else if (nextAppState === "background") {
+        lastActivityTime.current = Date.now();
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, [user, resetInactivityTimer]);
+
+  useEffect(() => {
+    if (user && !isLocked) {
+      resetInactivityTimer();
+    }
+    return () => {
+      if (inactivityTimer.current) {
+        clearTimeout(inactivityTimer.current);
+      }
+    };
+  }, [user, isLocked, resetInactivityTimer]);
 
   const loadStoredAuth = useCallback(async () => {
     try {
       const storedUser = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
       const storedShop = await AsyncStorage.getItem(SHOP_STORAGE_KEY);
-      
+      const lockTimestamp = await AsyncStorage.getItem(LOCK_TIMESTAMP_KEY);
+
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
       if (storedShop) {
         setShop(JSON.parse(storedShop));
+      }
+
+      if (lockTimestamp && storedUser) {
+        const timeSinceLock = Date.now() - parseInt(lockTimestamp, 10);
+        if (timeSinceLock < 24 * 60 * 60 * 1000) {
+          setIsLocked(true);
+        } else {
+          await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+        }
       }
 
       if (isSupabaseConfigured()) {
@@ -50,10 +137,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (session?.user) {
             await fetchUserData(session.user.id);
           } else if (storedUser) {
-            setUser(null);
-            setShop(null);
-            await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-            await AsyncStorage.removeItem(SHOP_STORAGE_KEY);
+            const parsed = JSON.parse(storedUser);
+            if (parsed.email) {
+              setUser(null);
+              setShop(null);
+              await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+              await AsyncStorage.removeItem(SHOP_STORAGE_KEY);
+            }
           }
         }
       }
@@ -88,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         shopId: userData.shop_id,
         role: userData.role,
         active: userData.active,
+        pin: userData.pin,
         createdAt: userData.created_at,
         lastLoginAt: userData.last_login_at,
       };
@@ -109,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           taxId: shopData.tax_id,
           currency: shopData.currency || "KES",
           receiptFooter: shopData.receipt_footer,
+          shopCode: shopData.shop_code,
           createdAt: shopData.created_at,
           updatedAt: shopData.updated_at,
         };
@@ -152,12 +244,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadStoredAuth]);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const loadStaffList = useCallback(async () => {
+    if (!shop) return;
+
+    if (!isSupabaseConfigured()) {
+      setStaffList([
+        {
+          id: "staff-1",
+          fullName: "John Cashier",
+          pin: "1234",
+          role: "cashier",
+          shopId: shop.id,
+          active: true,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: "staff-2",
+          fullName: "Mary Manager",
+          pin: "5678",
+          role: "manager",
+          shopId: shop.id,
+          active: true,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("shop_id", shop.id)
+        .eq("active", true)
+        .not("pin", "is", null);
+
+      if (error) throw error;
+
+      const staff: StaffMember[] = (data || []).map((u: any) => ({
+        id: u.id,
+        fullName: u.full_name,
+        pin: u.pin,
+        role: u.role,
+        shopId: u.shop_id,
+        active: u.active,
+        createdAt: u.created_at,
+        lastLoginAt: u.last_login_at,
+      }));
+
+      setStaffList(staff);
+    } catch (error) {
+      console.error("Error loading staff list:", error);
+    }
+  }, [shop]);
+
+  useEffect(() => {
+    if (shop) {
+      loadStaffList();
+    }
+  }, [shop, loadStaffList]);
+
+  const adminLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured()) {
       const demoUser: AuthUser = {
         id: "demo-user",
         email: email,
-        fullName: "Demo User",
+        fullName: "Demo Admin",
         shopId: "demo-shop",
         role: "admin",
         active: true,
@@ -167,13 +322,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: "demo-shop",
         name: "Mazao Animal Supplies",
         currency: "KES",
+        shopCode: "DEMO1234",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       setUser(demoUser);
       setShop(demoShop);
+      setIsLocked(false);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
       await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(demoShop));
+      await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
       return { success: true };
     }
 
@@ -194,6 +352,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.user) {
         await fetchUserData(data.user.id);
+        setIsLocked(false);
+        await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
         return { success: true };
       }
 
@@ -203,11 +363,162 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (
+  const staffLogin = async (shopCode: string, pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured()) {
+      if (shopCode === "DEMO1234" && (pin === "1234" || pin === "5678")) {
+        const demoUser: AuthUser = {
+          id: pin === "1234" ? "staff-1" : "staff-2",
+          email: "",
+          fullName: pin === "1234" ? "John Cashier" : "Mary Manager",
+          shopId: "demo-shop",
+          role: pin === "1234" ? "cashier" : "manager",
+          active: true,
+          pin: pin,
+          createdAt: new Date().toISOString(),
+        };
+        const demoShop: Shop = {
+          id: "demo-shop",
+          name: "Mazao Animal Supplies",
+          currency: "KES",
+          shopCode: "DEMO1234",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setUser(demoUser);
+        setShop(demoShop);
+        setIsLocked(false);
+        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
+        await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(demoShop));
+        await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+        return { success: true };
+      }
+      return { success: false, error: "Invalid shop code or PIN" };
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, error: "Database not configured" };
+    }
+
+    try {
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("shop_code", shopCode.toUpperCase())
+        .single();
+
+      if (shopError || !shopData) {
+        return { success: false, error: "Invalid shop code" };
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("shop_id", shopData.id)
+        .eq("pin", pin)
+        .eq("active", true)
+        .single();
+
+      if (userError || !userData) {
+        return { success: false, error: "Invalid PIN" };
+      }
+
+      const authUser: AuthUser = {
+        id: userData.id,
+        email: userData.email || "",
+        fullName: userData.full_name,
+        phone: userData.phone,
+        shopId: userData.shop_id,
+        role: userData.role,
+        active: userData.active,
+        pin: userData.pin,
+        createdAt: userData.created_at,
+        lastLoginAt: userData.last_login_at,
+      };
+
+      const currentShop: Shop = {
+        id: shopData.id,
+        name: shopData.name,
+        logo: shopData.logo,
+        address: shopData.address,
+        phone: shopData.phone,
+        email: shopData.email,
+        taxId: shopData.tax_id,
+        currency: shopData.currency || "KES",
+        receiptFooter: shopData.receipt_footer,
+        shopCode: shopData.shop_code,
+        createdAt: shopData.created_at,
+        updatedAt: shopData.updated_at,
+      };
+
+      setUser(authUser);
+      setShop(currentShop);
+      setIsLocked(false);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
+      await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(currentShop));
+      await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+
+      await supabase
+        .from("users")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", userData.id);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Login failed" };
+    }
+  };
+
+  const unlockWithPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      return { success: false, error: "No user session" };
+    }
+
+    if (!isSupabaseConfigured()) {
+      if (user.pin === pin || pin === "1234" || pin === "0000") {
+        setIsLocked(false);
+        await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+        resetInactivityTimer();
+        return { success: true };
+      }
+      return { success: false, error: "Incorrect PIN" };
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, error: "Database not configured" };
+    }
+
+    try {
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("pin")
+        .eq("id", user.id)
+        .single();
+
+      if (error || !userData) {
+        return { success: false, error: "Could not verify PIN" };
+      }
+
+      if (userData.pin === pin) {
+        setIsLocked(false);
+        await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+        resetInactivityTimer();
+        return { success: true };
+      }
+
+      return { success: false, error: "Incorrect PIN" };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Unlock failed" };
+    }
+  };
+
+  const signupWithLicense = async (
+    licenseKey: string,
     email: string,
     password: string,
     fullName: string,
-    shopName?: string
+    shopName: string
   ): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured()) {
       return { success: false, error: "Database not configured" };
@@ -219,6 +530,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      const { data: licenseData, error: licenseError } = await supabase
+        .from("license_keys")
+        .select("*")
+        .eq("key", licenseKey.toUpperCase())
+        .single();
+
+      if (licenseError || !licenseData) {
+        return { success: false, error: "Invalid license key" };
+      }
+
+      if (licenseData.is_used) {
+        return { success: false, error: "This license key has already been used" };
+      }
+
+      if (licenseData.expires_at && new Date(licenseData.expires_at) < new Date()) {
+        return { success: false, error: "This license key has expired" };
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -232,64 +561,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: "Signup failed" };
       }
 
-      let shopId: string;
+      const shopCode = generateShopCode();
+      const { data: newShop, error: shopError } = await supabase
+        .from("shops")
+        .insert({
+          name: shopName,
+          currency: "KES",
+          shop_code: shopCode,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-      if (shopName) {
-        const { data: newShop, error: shopError } = await supabase
-          .from("shops")
-          .insert({
-            name: shopName,
-            currency: "KES",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (shopError) {
-          return { success: false, error: "Failed to create shop" };
-        }
-        shopId = newShop.id;
-      } else {
-        const { data: existingShops } = await supabase
-          .from("shops")
-          .select("id")
-          .limit(1);
-        
-        if (existingShops && existingShops.length > 0) {
-          shopId = existingShops[0].id;
-        } else {
-          const { data: newShop, error: shopError } = await supabase
-            .from("shops")
-            .insert({
-              name: "Mazao Animal Supplies",
-              currency: "KES",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-          if (shopError) {
-            return { success: false, error: "Failed to create default shop" };
-          }
-          shopId = newShop.id;
-        }
+      if (shopError) {
+        return { success: false, error: "Failed to create shop" };
       }
 
+      const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
       const { error: userError } = await supabase.from("users").insert({
         auth_id: authData.user.id,
         email: email,
         full_name: fullName,
-        shop_id: shopId,
-        role: shopName ? "admin" : "cashier",
+        shop_id: newShop.id,
+        role: "admin",
         active: true,
+        pin: defaultPin,
         created_at: new Date().toISOString(),
       });
 
       if (userError) {
         return { success: false, error: "Failed to create user profile" };
       }
+
+      await supabase
+        .from("license_keys")
+        .update({
+          is_used: true,
+          used_at: new Date().toISOString(),
+          used_by_shop_id: newShop.id,
+        })
+        .eq("id", licenseData.id);
 
       return { success: true };
     } catch (error: any) {
@@ -306,8 +618,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setShop(null);
+    setIsLocked(false);
+    setStaffList([]);
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
     await AsyncStorage.removeItem(SHOP_STORAGE_KEY);
+    await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+    if (inactivityTimer.current) {
+      clearTimeout(inactivityTimer.current);
+    }
+  };
+
+  const lockScreen = () => {
+    setIsLocked(true);
+    AsyncStorage.setItem(LOCK_TIMESTAMP_KEY, Date.now().toString());
   };
 
   const updateUserProfile = async (updates: Partial<AuthUser>): Promise<boolean> => {
@@ -342,8 +665,150 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     const userLevel = ROLE_HIERARCHY[user.role];
-    
+
     return roles.some((role) => userLevel >= ROLE_HIERARCHY[role]);
+  };
+
+  const createStaffMember = async (
+    fullName: string,
+    pin: string,
+    role: UserRole
+  ): Promise<{ success: boolean; error?: string; user?: StaffMember }> => {
+    if (!shop) {
+      return { success: false, error: "No shop selected" };
+    }
+
+    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      return { success: false, error: "PIN must be exactly 4 digits" };
+    }
+
+    if (!isSupabaseConfigured()) {
+      const newStaff: StaffMember = {
+        id: Date.now().toString(),
+        fullName,
+        pin,
+        role,
+        shopId: shop.id,
+        active: true,
+        createdAt: new Date().toISOString(),
+      };
+      setStaffList((prev) => [...prev, newStaff]);
+      return { success: true, user: newStaff };
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, error: "Database not configured" };
+    }
+
+    try {
+      const { data: existingPin, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("shop_id", shop.id)
+        .eq("pin", pin)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingPin) {
+        return { success: false, error: "This PIN is already in use by another staff member" };
+      }
+
+      const { data: newUser, error: insertError } = await supabase
+        .from("users")
+        .insert({
+          full_name: fullName,
+          shop_id: shop.id,
+          role: role,
+          pin: pin,
+          active: true,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      const newStaff: StaffMember = {
+        id: newUser.id,
+        fullName: newUser.full_name,
+        pin: newUser.pin,
+        role: newUser.role,
+        shopId: newUser.shop_id,
+        active: newUser.active,
+        createdAt: newUser.created_at,
+      };
+
+      setStaffList((prev) => [...prev, newStaff]);
+      return { success: true, user: newStaff };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Failed to create staff member" };
+    }
+  };
+
+  const updateStaffPin = async (userId: string, newPin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!shop) {
+      return { success: false, error: "No shop selected" };
+    }
+
+    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      return { success: false, error: "PIN must be exactly 4 digits" };
+    }
+
+    if (!isSupabaseConfigured()) {
+      setStaffList((prev) =>
+        prev.map((s) => (s.id === userId ? { ...s, pin: newPin } : s))
+      );
+      if (user?.id === userId) {
+        const updatedUser = { ...user, pin: newPin };
+        setUser(updatedUser);
+        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+      }
+      return { success: true };
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, error: "Database not configured" };
+    }
+
+    try {
+      const { data: existingPin, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("shop_id", shop.id)
+        .eq("pin", newPin)
+        .neq("id", userId)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingPin) {
+        return { success: false, error: "This PIN is already in use by another staff member" };
+      }
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ pin: newPin })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      setStaffList((prev) =>
+        prev.map((s) => (s.id === userId ? { ...s, pin: newPin } : s))
+      );
+
+      if (user?.id === userId) {
+        const updatedUser = { ...user, pin: newPin };
+        setUser(updatedUser);
+        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Failed to update PIN" };
+    }
   };
 
   return (
@@ -353,11 +818,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         shop,
         isLoading,
         isAuthenticated: !!user,
-        login,
-        signup,
+        isLocked,
+        staffList,
+        adminLogin,
+        staffLogin,
+        unlockWithPin,
+        signupWithLicense,
         logout,
+        lockScreen,
         updateUserProfile,
         hasPermission,
+        createStaffMember,
+        updateStaffPin,
+        loadStaffList,
+        resetInactivityTimer,
       }}
     >
       {children}

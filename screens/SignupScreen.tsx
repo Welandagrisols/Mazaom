@@ -22,19 +22,24 @@ interface SignupScreenProps {
 }
 
 export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
-  const { signup } = useAuth();
+  const { signupWithLicense } = useAuth();
   const { theme } = useTheme();
+  const [licenseKey, setLicenseKey] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [shopName, setShopName] = useState("");
-  const [isNewShop, setIsNewShop] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
+    if (!licenseKey.trim()) {
+      Alert.alert("Error", "Please enter your license key");
+      return;
+    }
+
+    if (!fullName.trim() || !email.trim() || !password.trim() || !shopName.trim()) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
@@ -49,24 +54,20 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
       return;
     }
 
-    if (isNewShop && !shopName.trim()) {
-      Alert.alert("Error", "Please enter a shop name");
-      return;
-    }
-
     setIsLoading(true);
-    const result = await signup(
+    const result = await signupWithLicense(
+      licenseKey.trim().toUpperCase(),
       email.trim(),
       password,
       fullName.trim(),
-      isNewShop ? shopName.trim() : undefined
+      shopName.trim()
     );
     setIsLoading(false);
 
     if (result.success) {
       Alert.alert(
         "Success",
-        "Account created successfully! Please check your email to verify your account.",
+        "Your shop has been created! Please check your email to verify your account, then login.",
         [{ text: "OK", onPress: onNavigateToLogin }]
       );
     } else {
@@ -90,16 +91,49 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                 <Feather name="arrow-left" size={24} color={theme.text} />
               </TouchableOpacity>
               <Text style={[styles.title, { color: theme.text }]}>
-                Create Account
+                Register Your Shop
               </Text>
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Join Mazao Animal Supplies POS
+                Enter your license key to get started
               </Text>
             </View>
 
             <View style={styles.form}>
+              <View style={[styles.licenseBox, { backgroundColor: Colors.primary.main + "10", borderColor: Colors.primary.main }]}>
+                <Feather name="key" size={24} color={Colors.primary.main} />
+                <View style={styles.licenseContent}>
+                  <Text style={[styles.licenseLabel, { color: Colors.primary.main }]}>
+                    License Key *
+                  </Text>
+                  <TextInput
+                    style={[styles.licenseInput, { color: theme.text }]}
+                    placeholder="Enter your license key"
+                    placeholderTextColor={theme.textSecondary}
+                    value={licenseKey}
+                    onChangeText={(text) => setLicenseKey(text.toUpperCase())}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.text }]}>Full Name *</Text>
+                <Text style={[styles.label, { color: theme.text }]}>Shop Name *</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
+                  <Feather name="home" size={20} color={theme.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: theme.text }]}
+                    placeholder="Enter your shop name"
+                    placeholderTextColor={theme.textSecondary}
+                    value={shopName}
+                    onChangeText={setShopName}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.text }]}>Your Full Name *</Text>
                 <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
                   <Feather name="user" size={20} color={theme.textSecondary} />
                   <TextInput
@@ -171,45 +205,6 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                 </View>
               </View>
 
-              <View style={styles.shopToggle}>
-                <TouchableOpacity
-                  style={styles.toggleOption}
-                  onPress={() => setIsNewShop(!isNewShop)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      {
-                        backgroundColor: isNewShop ? Colors.primary.main : "transparent",
-                        borderColor: isNewShop ? Colors.primary.main : theme.textSecondary,
-                      },
-                    ]}
-                  >
-                    {isNewShop && <Feather name="check" size={14} color="#FFFFFF" />}
-                  </View>
-                  <Text style={[styles.toggleText, { color: theme.text }]}>
-                    I'm registering a new shop
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {isNewShop && (
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Shop Name *</Text>
-                  <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
-                    <Feather name="home" size={20} color={theme.textSecondary} />
-                    <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      placeholder="Enter your shop name"
-                      placeholderTextColor={theme.textSecondary}
-                      value={shopName}
-                      onChangeText={setShopName}
-                      autoCapitalize="words"
-                    />
-                  </View>
-                </View>
-              )}
-
               <TouchableOpacity
                 style={[styles.signupButton, { backgroundColor: Colors.primary.main }]}
                 onPress={handleSignup}
@@ -218,7 +213,7 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                 {isLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.signupButtonText}>Create Account</Text>
+                  <Text style={styles.signupButtonText}>Register Shop</Text>
                 )}
               </TouchableOpacity>
 
@@ -231,6 +226,13 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                     {" "}Login
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              <View style={[styles.infoBox, { backgroundColor: theme.backgroundSecondary }]}>
+                <Feather name="info" size={16} color={theme.textSecondary} />
+                <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                  Don't have a license key? Contact us to get one for your shop.
+                </Text>
               </View>
             </View>
           </View>
@@ -256,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   backButton: {
     marginBottom: 16,
@@ -271,6 +273,27 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  licenseBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 12,
+  },
+  licenseContent: {
+    flex: 1,
+  },
+  licenseLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  licenseInput: {
+    fontSize: 18,
+    fontWeight: "600",
+    letterSpacing: 2,
   },
   inputGroup: {
     gap: 8,
@@ -291,26 +314,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  shopToggle: {
-    marginTop: 8,
-  },
-  toggleOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toggleText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
   signupButton: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -325,8 +328,7 @@ const styles = StyleSheet.create({
   loginRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 24,
-    marginBottom: 32,
+    marginTop: 16,
   },
   loginText: {
     fontSize: 14,
@@ -334,5 +336,19 @@ const styles = StyleSheet.create({
   loginLink: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 32,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

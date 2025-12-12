@@ -16,33 +16,40 @@ import { useAuth } from "@/context/AuthContext";
 import { Colors } from "@/constants/theme";
 import { useTheme } from "@/hooks/useTheme";
 
-interface LoginScreenProps {
-  onNavigateToSignup: () => void;
-  onNavigateToStaffLogin: () => void;
+interface StaffLoginScreenProps {
+  onNavigateToAdminLogin: () => void;
 }
 
-export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin }: LoginScreenProps) {
-  const { adminLogin } = useAuth();
+export default function StaffLoginScreen({ onNavigateToAdminLogin }: StaffLoginScreenProps) {
+  const { staffLogin } = useAuth();
   const { theme } = useTheme();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [shopCode, setShopCode] = useState("");
+  const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter your email and password");
+    if (!shopCode.trim()) {
+      Alert.alert("Error", "Please enter your shop code");
+      return;
+    }
+
+    if (!pin.trim() || pin.length !== 4) {
+      Alert.alert("Error", "Please enter your 4-digit PIN");
       return;
     }
 
     setIsLoading(true);
-    const result = await adminLogin(email.trim(), password);
+    const result = await staffLogin(shopCode.trim().toUpperCase(), pin);
     setIsLoading(false);
 
     if (!result.success) {
-      Alert.alert("Login Failed", result.error || "Invalid credentials");
+      Alert.alert("Login Failed", result.error || "Invalid shop code or PIN");
     }
+  };
+
+  const handlePinChange = (text: string) => {
+    const numericText = text.replace(/[^0-9]/g, "").slice(0, 4);
+    setPin(numericText);
   };
 
   return (
@@ -60,77 +67,42 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
               Mazao Animal Supplies
             </Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Admin Login
+              Staff Login
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Email</Text>
+              <Text style={[styles.label, { color: theme.text }]}>Shop Code</Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
-                <Feather name="mail" size={20} color={theme.textSecondary} />
+                <Feather name="home" size={20} color={theme.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: theme.text }]}
-                  placeholder="Enter your email"
+                  placeholder="Enter shop code"
                   placeholderTextColor={theme.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  value={shopCode}
+                  onChangeText={(text) => setShopCode(text.toUpperCase())}
+                  autoCapitalize="characters"
                   autoCorrect={false}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>Password</Text>
+              <Text style={[styles.label, { color: theme.text }]}>Your PIN</Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
                 <Feather name="lock" size={20} color={theme.textSecondary} />
                 <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="Enter your password"
+                  style={[styles.input, { color: theme.text, letterSpacing: 8, fontSize: 24 }]}
+                  placeholder="••••"
                   placeholderTextColor={theme.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
+                  value={pin}
+                  onChangeText={handlePinChange}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  secureTextEntry
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Feather
-                    name={showPassword ? "eye-off" : "eye"}
-                    size={20}
-                    color={theme.textSecondary}
-                  />
-                </TouchableOpacity>
               </View>
-            </View>
-
-            <View style={styles.optionsRow}>
-              <TouchableOpacity
-                style={styles.rememberMe}
-                onPress={() => setRememberMe(!rememberMe)}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    {
-                      backgroundColor: rememberMe ? Colors.primary.main : "transparent",
-                      borderColor: rememberMe ? Colors.primary.main : theme.textSecondary,
-                    },
-                  ]}
-                >
-                  {rememberMe && <Feather name="check" size={14} color="#FFFFFF" />}
-                </View>
-                <Text style={[styles.rememberMeText, { color: theme.text }]}>
-                  Remember me
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity>
-                <Text style={[styles.forgotPassword, { color: Colors.primary.main }]}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -152,25 +124,14 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
             </View>
 
             <TouchableOpacity
-              style={[styles.staffButton, { borderColor: Colors.primary.main }]}
-              onPress={onNavigateToStaffLogin}
+              style={[styles.adminButton, { borderColor: Colors.primary.main }]}
+              onPress={onNavigateToAdminLogin}
             >
-              <Feather name="users" size={20} color={Colors.primary.main} />
-              <Text style={[styles.staffButtonText, { color: Colors.primary.main }]}>
-                Staff Login (PIN)
+              <Feather name="shield" size={20} color={Colors.primary.main} />
+              <Text style={[styles.adminButtonText, { color: Colors.primary.main }]}>
+                Admin Login
               </Text>
             </TouchableOpacity>
-
-            <View style={styles.signupRow}>
-              <Text style={[styles.signupText, { color: theme.textSecondary }]}>
-                New shop? Have a license key?
-              </Text>
-              <TouchableOpacity onPress={onNavigateToSignup}>
-                <Text style={[styles.signupLink, { color: Colors.primary.main }]}>
-                  {" "}Register
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -234,31 +195,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  optionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  rememberMe: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rememberMeText: {
-    fontSize: 14,
-  },
-  forgotPassword: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
   loginButton: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -273,7 +209,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -283,7 +219,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: 14,
   },
-  staffButton: {
+  adminButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -292,20 +228,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     gap: 8,
   },
-  staffButtonText: {
+  adminButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-  },
-  signupRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 16,
-  },
-  signupText: {
-    fontSize: 14,
-  },
-  signupLink: {
-    fontSize: 14,
     fontWeight: "600",
   },
 });

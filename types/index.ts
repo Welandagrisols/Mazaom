@@ -18,14 +18,12 @@ export interface Product {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  // Item type: 'bulk' for divisible items sold by weight/volume, 'unit' for whole items only
   itemType: ItemType;
-  // Bulk sale properties (only used when itemType is 'bulk')
-  isBulkItem?: boolean; // Deprecated - use itemType instead
-  packageWeight?: number; // Total weight of full package (e.g., 70kg bag)
-  pricePerKg?: number; // Retail price per kg/liter
-  costPerKg?: number; // Cost price per kg/liter
-  bulkUnit?: string; // Unit for bulk sales (kg, liters, etc.)
+  isBulkItem?: boolean;
+  packageWeight?: number;
+  pricePerKg?: number;
+  costPerKg?: number;
+  bulkUnit?: string;
 }
 
 export interface InventoryBatch {
@@ -69,9 +67,8 @@ export interface CartItem {
   unitPrice: number;
   discount: number;
   batchId?: string;
-  // For bulk items sold by weight
-  actualWeight?: number; // Weight sold (e.g., 2.5 kg from a 70kg bag)
-  isFractionalSale?: boolean; // True if sold by weight
+  actualWeight?: number;
+  isFractionalSale?: boolean;
 }
 
 export interface Transaction {
@@ -189,7 +186,6 @@ export interface CreditTransaction {
   createdBy?: string;
 }
 
-// Multi-tenant types
 export type UserRole = "admin" | "manager" | "cashier";
 
 export interface Shop {
@@ -202,6 +198,7 @@ export interface Shop {
   taxId?: string;
   currency: string;
   receiptFooter?: string;
+  shopCode?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -214,6 +211,7 @@ export interface AuthUser {
   shopId: string;
   role: UserRole;
   active: boolean;
+  pin?: string;
   createdAt: string;
   lastLoginAt?: string;
 }
@@ -224,4 +222,28 @@ export interface UserRole_DB {
   shopId: string;
   role: UserRole;
   createdAt: string;
+}
+
+export interface LicenseKey {
+  id: string;
+  key: string;
+  shopName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  isUsed: boolean;
+  usedAt?: string;
+  usedByShopId?: string;
+  createdAt: string;
+  expiresAt?: string;
+}
+
+export interface StaffMember {
+  id: string;
+  fullName: string;
+  pin: string;
+  role: UserRole;
+  shopId: string;
+  active: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
 }

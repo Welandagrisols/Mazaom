@@ -26,6 +26,7 @@ interface UserListItem {
   email: string;
   fullName: string;
   role: UserRole;
+  pin?: string;
   active: boolean;
   createdAt: string;
 }
@@ -38,14 +39,17 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 export default function UserManagementScreen() {
   const { theme } = useTheme();
-  const { shop, user: currentUser } = useAuth();
+  const { shop, user: currentUser, createStaffMember, updateStaffPin } = useAuth();
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState("");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [newUserName, setNewUserName] = useState("");
+  const [newUserPin, setNewUserPin] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("cashier");
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [newPin, setNewPin] = useState("");
 
   const loadUsers = useCallback(async () => {
     if (!isSupabaseConfigured() || !shop) {
@@ -55,14 +59,16 @@ export default function UserManagementScreen() {
           email: "admin@mazao.com",
           fullName: "Shop Admin",
           role: "admin",
+          pin: "0000",
           active: true,
           createdAt: new Date().toISOString(),
         },
         {
           id: "2",
-          email: "cashier@mazao.com",
+          email: "",
           fullName: "John Cashier",
           role: "cashier",
+          pin: "1234",
           active: true,
           createdAt: new Date().toISOString(),
         },
@@ -85,9 +91,10 @@ export default function UserManagementScreen() {
 
       const mappedUsers: UserListItem[] = (data || []).map((u: any) => ({
         id: u.id,
-        email: u.email,
+        email: u.email || "",
         fullName: u.full_name,
         role: u.role,
+        pin: u.pin,
         active: u.active,
         createdAt: u.created_at,
       }));
@@ -105,98 +112,67 @@ export default function UserManagementScreen() {
   }, [loadUsers]);
 
   const handleAddUser = async () => {
-    if (!newUserEmail.trim() || !newUserName.trim()) {
-      Alert.alert("Error", "Please fill in all fields");
+    if (!newUserName.trim()) {
+      Alert.alert("Error", "Please enter a name");
+      return;
+    }
+
+    if (!newUserPin || newUserPin.length !== 4 || !/^\d{4}$/.test(newUserPin)) {
+      Alert.alert("Error", "Please enter a 4-digit PIN");
       return;
     }
 
     setIsAddingUser(true);
 
-    if (!isSupabaseConfigured()) {
+    const result = await createStaffMember(newUserName.trim(), newUserPin, newUserRole);
+
+    setIsAddingUser(false);
+
+    if (result.success) {
       const newUser: UserListItem = {
-        id: Date.now().toString(),
-        email: newUserEmail.trim(),
+        id: result.user?.id || Date.now().toString(),
+        email: "",
         fullName: newUserName.trim(),
         role: newUserRole,
+        pin: newUserPin,
         active: true,
         createdAt: new Date().toISOString(),
       };
       setUsers((prev) => [newUser, ...prev]);
       setShowAddModal(false);
-      setNewUserEmail("");
       setNewUserName("");
+      setNewUserPin("");
       setNewUserRole("cashier");
-      setIsAddingUser(false);
-      Alert.alert("Success", "User added successfully (demo mode)");
-      return;
-    }
 
-    const supabase = getSupabase();
-    if (!supabase || !shop) {
-      setIsAddingUser(false);
-      Alert.alert("Error", "Unable to connect to database");
-      return;
-    }
-
-    try {
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", newUserEmail.trim())
-        .eq("shop_id", shop.id)
-        .maybeSingle();
-
-      if (checkError) {
-        throw checkError;
-      }
-
-      if (existingUser) {
-        Alert.alert("Error", "A user with this email already exists in your shop");
-        setIsAddingUser(false);
-        return;
-      }
-
-      const { data: newUserData, error: insertError } = await supabase
-        .from("users")
-        .insert({
-          email: newUserEmail.trim(),
-          full_name: newUserName.trim(),
-          shop_id: shop.id,
-          role: newUserRole,
-          active: true,
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      const newUser: UserListItem = {
-        id: newUserData.id,
-        email: newUserData.email,
-        fullName: newUserData.full_name,
-        role: newUserData.role,
-        active: newUserData.active,
-        createdAt: newUserData.created_at,
-      };
-
-      setUsers((prev) => [newUser, ...prev]);
-      setShowAddModal(false);
-      setNewUserEmail("");
-      setNewUserName("");
-      setNewUserRole("cashier");
-      
       Alert.alert(
-        "User Added",
-        `${newUserName} has been added to your team as ${newUserRole}. They will need to register with the same email address to access the app.`
+        "Staff Added",
+        `${newUserName} has been added with PIN: ${newUserPin}. They can now login using the shop code and their PIN.`
       );
-    } catch (error: any) {
-      console.error("Error adding user:", error);
-      Alert.alert("Error", error.message || "Failed to add user. Please try again.");
-    } finally {
-      setIsAddingUser(false);
+    } else {
+      Alert.alert("Error", result.error || "Failed to add staff member");
+    }
+  };
+
+  const handleUpdatePin = async () => {
+    if (!selectedUser) return;
+
+    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      Alert.alert("Error", "Please enter a 4-digit PIN");
+      return;
+    }
+
+    const result = await updateStaffPin(selectedUser.id, newPin);
+
+    if (result.success) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === selectedUser.id ? { ...u, pin: newPin } : u))
+      );
+      setShowPinModal(false);
+      setSelectedUser(null);
+      setNewPin("");
+      Alert.alert("Success", "PIN has been updated");
+    } else {
+      Alert.alert("Error", result.error || "Failed to update PIN");
     }
   };
 
@@ -215,7 +191,7 @@ export default function UserManagementScreen() {
           text: "Confirm",
           onPress: async () => {
             const newStatus = !currentStatus;
-            
+
             setUsers((prev) =>
               prev.map((u) =>
                 u.id === userId ? { ...u, active: newStatus } : u
@@ -285,7 +261,11 @@ export default function UserManagementScreen() {
         </View>
         <View style={styles.userDetails}>
           <ThemedText style={styles.userName}>{item.fullName}</ThemedText>
-          <ThemedText style={styles.userEmail}>{item.email}</ThemedText>
+          {item.email ? (
+            <ThemedText style={styles.userEmail}>{item.email}</ThemedText>
+          ) : (
+            <ThemedText style={styles.userPin}>PIN: ****</ThemedText>
+          )}
           <View style={styles.roleRow}>
             <View
               style={[
@@ -309,18 +289,32 @@ export default function UserManagementScreen() {
           </View>
         </View>
       </View>
-      {item.id !== currentUser?.id && (
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleToggleUserStatus(item.id, item.active)}
-        >
-          <Feather
-            name={item.active ? "user-x" : "user-check"}
-            size={20}
-            color={item.active ? Colors.accent.error : Colors.accent.success}
-          />
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionButtons}>
+        {item.pin && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              setSelectedUser(item);
+              setNewPin("");
+              setShowPinModal(true);
+            }}
+          >
+            <Feather name="key" size={18} color={Colors.primary.main} />
+          </TouchableOpacity>
+        )}
+        {item.id !== currentUser?.id && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleToggleUserStatus(item.id, item.active)}
+          >
+            <Feather
+              name={item.active ? "user-x" : "user-check"}
+              size={20}
+              color={item.active ? Colors.accent.error : Colors.accent.success}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 
@@ -328,13 +322,20 @@ export default function UserManagementScreen() {
     <RoleGuard requiredRole="admin" showAccessDenied>
       <ThemedView style={styles.container}>
         <View style={styles.header}>
-          <ThemedText style={styles.title}>Team Members</ThemedText>
+          <View>
+            <ThemedText style={styles.title}>Team Members</ThemedText>
+            {shop?.shopCode && (
+              <ThemedText style={styles.shopCode}>
+                Shop Code: {shop.shopCode}
+              </ThemedText>
+            )}
+          </View>
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: Colors.primary.main }]}
             onPress={() => setShowAddModal(true)}
           >
             <Feather name="plus" size={20} color="#FFFFFF" />
-            <ThemedText style={styles.addButtonText}>Add User</ThemedText>
+            <ThemedText style={styles.addButtonText}>Add Staff</ThemedText>
           </TouchableOpacity>
         </View>
 
@@ -362,7 +363,7 @@ export default function UserManagementScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.backgroundRoot }]}>
               <View style={styles.modalHeader}>
-                <ThemedText style={styles.modalTitle}>Add Team Member</ThemedText>
+                <ThemedText style={styles.modalTitle}>Add Staff Member</ThemedText>
                 <TouchableOpacity onPress={() => setShowAddModal(false)}>
                   <Feather name="x" size={24} color={theme.text} />
                 </TouchableOpacity>
@@ -383,25 +384,28 @@ export default function UserManagementScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Email</ThemedText>
+                <ThemedText style={styles.label}>4-Digit PIN</ThemedText>
                 <TextInput
                   style={[
                     styles.input,
-                    { backgroundColor: theme.backgroundSecondary, color: theme.text },
+                    { backgroundColor: theme.backgroundSecondary, color: theme.text, letterSpacing: 8, fontSize: 24, textAlign: "center" },
                   ]}
-                  placeholder="Enter email address"
+                  placeholder="••••"
                   placeholderTextColor={theme.textSecondary}
-                  value={newUserEmail}
-                  onChangeText={setNewUserEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  value={newUserPin}
+                  onChangeText={(text) => setNewUserPin(text.replace(/[^0-9]/g, "").slice(0, 4))}
+                  keyboardType="number-pad"
+                  maxLength={4}
                 />
+                <ThemedText style={[styles.helperText, { color: theme.textSecondary }]}>
+                  Staff will use this PIN to login
+                </ThemedText>
               </View>
 
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>Role</ThemedText>
                 <View style={styles.roleOptions}>
-                  {ROLE_OPTIONS.map((option) => (
+                  {ROLE_OPTIONS.filter(o => o.value !== "admin").map((option) => (
                     <TouchableOpacity
                       key={option.value}
                       style={[
@@ -436,8 +440,48 @@ export default function UserManagementScreen() {
                 {isAddingUser ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <ThemedText style={styles.submitButtonText}>Add User</ThemedText>
+                  <ThemedText style={styles.submitButtonText}>Add Staff</ThemedText>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showPinModal} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.backgroundRoot }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>Change PIN</ThemedText>
+                <TouchableOpacity onPress={() => setShowPinModal(false)}>
+                  <Feather name="x" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ThemedText style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+                Set a new PIN for {selectedUser?.fullName}
+              </ThemedText>
+
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.label}>New 4-Digit PIN</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.backgroundSecondary, color: theme.text, letterSpacing: 8, fontSize: 24, textAlign: "center" },
+                  ]}
+                  placeholder="••••"
+                  placeholderTextColor={theme.textSecondary}
+                  value={newPin}
+                  onChangeText={(text) => setNewPin(text.replace(/[^0-9]/g, "").slice(0, 4))}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: Colors.primary.main }]}
+                onPress={handleUpdatePin}
+              >
+                <ThemedText style={styles.submitButtonText}>Update PIN</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -455,13 +499,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: Spacing.lg,
     paddingTop: Spacing.md,
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
+  },
+  shopCode: {
+    fontSize: 14,
+    marginTop: 4,
+    opacity: 0.7,
   },
   addButton: {
     flexDirection: "row",
@@ -524,6 +573,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 6,
   },
+  userPin: {
+    fontSize: 13,
+    opacity: 0.7,
+    marginBottom: 6,
+  },
   roleRow: {
     flexDirection: "row",
     gap: Spacing.xs,
@@ -545,6 +599,10 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: Spacing.xs,
   },
   actionButton: {
     padding: Spacing.sm,
@@ -580,6 +638,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
   },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: Spacing.md,
+  },
   inputGroup: {
     marginBottom: Spacing.md,
   },
@@ -587,6 +649,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     marginBottom: Spacing.xs,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
   },
   input: {
     paddingHorizontal: Spacing.md,
