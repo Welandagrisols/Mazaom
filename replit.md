@@ -30,7 +30,8 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 │   ├── MainTabNavigator.tsx
 │   └── ...
 ├── context/                # React Context providers
-│   └── AppContext.tsx
+│   ├── AppContext.tsx
+│   └── AuthContext.tsx     # Authentication and user management
 ├── hooks/                  # Custom React hooks
 ├── constants/              # Theme and category constants
 ├── utils/                  # Utility functions
@@ -38,6 +39,12 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 ```
 
 ## Features
+- **Multi-tenant Authentication**: Each shop has independent users, roles, and customization
+  - Email/password login with Supabase Auth
+  - Role-based access control (admin, manager, cashier)
+  - User management for admins to invite and manage staff
+  - Demo mode fallback when Supabase is not configured
+- **Shop Branding**: Dynamic shop name display (currently: Mazao Animal Supplies)
 - **POS Interface**: Quick product search, barcode scanning, cart management
 - **Dual Inventory Item Types**:
   - **Unit/Countable**: Items sold as whole units only (boxes, bottles, sachets)
@@ -83,6 +90,7 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
 ## Recent Changes
+- December 2024: Added multi-tenant authentication system with Supabase Auth, login/signup screens, role-based access control, and user management
 - December 2024: Combined Add Product and Add Stock screens into unified AddOrRestockScreen for streamlined workflow
 - December 2024: Added receipt processing modes (Historical Data Only vs Add to Current Stock) with price history tracking
 - December 2024: Added dual inventory item types (Unit/Countable vs Bulk/Divisible) with proper tracking
