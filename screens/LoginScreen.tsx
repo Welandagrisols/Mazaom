@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, LastShopInfo } from "@/context/AuthContext";
 import { Colors } from "@/constants/theme";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -22,13 +23,18 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin }: LoginScreenProps) {
-  const { adminLogin } = useAuth();
+  const { adminLogin, lastShopInfo, lookupShopByCode, setLastShopInfo, clearLastShopInfo } = useAuth();
   const { theme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showShopCodeModal, setShowShopCodeModal] = useState(false);
+  const [shopCodeInput, setShopCodeInput] = useState("");
+  const [isLookingUpShop, setIsLookingUpShop] = useState(false);
+
+  const displayedShopName = lastShopInfo?.name || "AgroVet POS";
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -45,6 +51,35 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
     }
   };
 
+  const handleSwitchShop = () => {
+    setShopCodeInput("");
+    setShowShopCodeModal(true);
+  };
+
+  const handleLookupShop = async () => {
+    if (!shopCodeInput.trim()) {
+      Alert.alert("Error", "Please enter a shop code");
+      return;
+    }
+
+    setIsLookingUpShop(true);
+    const result = await lookupShopByCode(shopCodeInput.trim());
+    setIsLookingUpShop(false);
+
+    if (result.success && result.shop) {
+      await setLastShopInfo(result.shop);
+      setShowShopCodeModal(false);
+      Alert.alert("Success", `Switched to ${result.shop.name}`);
+    } else {
+      Alert.alert("Error", result.error || "Shop not found");
+    }
+  };
+
+  const handleClearShop = async () => {
+    await clearLastShopInfo();
+    setShowShopCodeModal(false);
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <KeyboardAvoidingView
@@ -57,11 +92,27 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
               <Feather name="shopping-bag" size={48} color="#FFFFFF" />
             </View>
             <Text style={[styles.appName, { color: Colors.primary.main }]}>
-              Mazao Animal Supplies
+              {displayedShopName}
             </Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               Admin Login
             </Text>
+            {lastShopInfo && (
+              <TouchableOpacity onPress={handleSwitchShop} style={styles.switchShopButton}>
+                <Feather name="repeat" size={14} color={Colors.primary.main} />
+                <Text style={[styles.switchShopText, { color: Colors.primary.main }]}>
+                  Switch Shop
+                </Text>
+              </TouchableOpacity>
+            )}
+            {!lastShopInfo && (
+              <TouchableOpacity onPress={handleSwitchShop} style={styles.switchShopButton}>
+                <Feather name="home" size={14} color={Colors.primary.main} />
+                <Text style={[styles.switchShopText, { color: Colors.primary.main }]}>
+                  Enter Shop Code
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.form}>
@@ -174,6 +225,67 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showShopCodeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShopCodeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {lastShopInfo ? "Switch Shop" : "Enter Shop Code"}
+              </Text>
+              <TouchableOpacity onPress={() => setShowShopCodeModal(false)}>
+                <Feather name="x" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalDescription, { color: theme.textSecondary }]}>
+              Enter your shop code to personalize your login screen. You can find your shop code in your account settings.
+            </Text>
+
+            <View style={[styles.modalInputContainer, { backgroundColor: theme.backgroundSecondary }]}>
+              <Feather name="hash" size={20} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.modalInput, { color: theme.text }]}
+                placeholder="Enter shop code (e.g., ABC12345)"
+                placeholderTextColor={theme.textSecondary}
+                value={shopCodeInput}
+                onChangeText={(text) => setShopCodeInput(text.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={8}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.primary.main }]}
+              onPress={handleLookupShop}
+              disabled={isLookingUpShop}
+            >
+              {isLookingUpShop ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.modalButtonText}>Find My Shop</Text>
+              )}
+            </TouchableOpacity>
+
+            {lastShopInfo && (
+              <TouchableOpacity
+                style={[styles.clearButton]}
+                onPress={handleClearShop}
+              >
+                <Text style={[styles.clearButtonText, { color: theme.textSecondary }]}>
+                  Clear saved shop
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -211,6 +323,18 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 18,
     textAlign: "center",
+  },
+  switchShopButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  switchShopText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   form: {
     gap: 16,
@@ -307,5 +431,65 @@ const styles = StyleSheet.create({
   signupLink: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  modalDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 12,
+    marginBottom: 16,
+  },
+  modalInput: {
+    flex: 1,
+    fontSize: 16,
+    letterSpacing: 2,
+  },
+  modalButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  clearButton: {
+    alignItems: "center",
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  clearButtonText: {
+    fontSize: 14,
   },
 });

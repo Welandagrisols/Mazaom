@@ -7,7 +7,14 @@ import { AuthUser, Shop, UserRole, StaffMember } from "@/types";
 const AUTH_STORAGE_KEY = "@agrovet_auth_user";
 const SHOP_STORAGE_KEY = "@agrovet_current_shop";
 const LOCK_TIMESTAMP_KEY = "@agrovet_lock_timestamp";
+const LAST_SHOP_KEY = "@agrovet_last_shop";
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+
+export interface LastShopInfo {
+  name: string;
+  shopCode: string;
+  logo?: string;
+}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -16,6 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLocked: boolean;
   staffList: StaffMember[];
+  lastShopInfo: LastShopInfo | null;
   adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   staffLogin: (shopCode: string, pin: string) => Promise<{ success: boolean; error?: string }>;
   unlockWithPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
@@ -38,6 +46,9 @@ interface AuthContextType {
   updateStaffPin: (userId: string, newPin: string) => Promise<{ success: boolean; error?: string }>;
   loadStaffList: () => Promise<void>;
   resetInactivityTimer: () => void;
+  lookupShopByCode: (shopCode: string) => Promise<{ success: boolean; shop?: LastShopInfo; error?: string }>;
+  setLastShopInfo: (shopInfo: LastShopInfo | null) => Promise<void>;
+  clearLastShopInfo: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [lastShopInfo, setLastShopInfoState] = useState<LastShopInfo | null>(null);
   const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
   const lastActivityTime = useRef<number>(Date.now());
 
@@ -113,12 +125,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedUser = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
       const storedShop = await AsyncStorage.getItem(SHOP_STORAGE_KEY);
       const lockTimestamp = await AsyncStorage.getItem(LOCK_TIMESTAMP_KEY);
+      const storedLastShop = await AsyncStorage.getItem(LAST_SHOP_KEY);
 
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
       if (storedShop) {
         setShop(JSON.parse(storedShop));
+      }
+      if (storedLastShop) {
+        setLastShopInfoState(JSON.parse(storedLastShop));
       }
 
       if (lockTimestamp && storedUser) {
@@ -206,6 +222,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setShop(currentShop);
         await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(currentShop));
+        
+        const lastShop: LastShopInfo = {
+          name: shopData.name,
+          shopCode: shopData.shop_code,
+          logo: shopData.logo,
+        };
+        setLastShopInfoState(lastShop);
+        await AsyncStorage.setItem(LAST_SHOP_KEY, JSON.stringify(lastShop));
       }
 
       setUser(authUser);
@@ -320,7 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       const demoShop: Shop = {
         id: "demo-shop",
-        name: "Mazao Animal Supplies",
+        name: "Demo Agrovet",
         currency: "KES",
         shopCode: "DEMO1234",
         createdAt: new Date().toISOString(),
@@ -332,6 +356,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
       await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(demoShop));
       await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+      
+      const lastShop: LastShopInfo = { name: demoShop.name, shopCode: demoShop.shopCode || "DEMO1234" };
+      setLastShopInfoState(lastShop);
+      await AsyncStorage.setItem(LAST_SHOP_KEY, JSON.stringify(lastShop));
+      
       return { success: true };
     }
 
@@ -378,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         const demoShop: Shop = {
           id: "demo-shop",
-          name: "Mazao Animal Supplies",
+          name: "Demo Agrovet",
           currency: "KES",
           shopCode: "DEMO1234",
           createdAt: new Date().toISOString(),
@@ -390,6 +419,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(demoUser));
         await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(demoShop));
         await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+        
+        const lastShop: LastShopInfo = { name: demoShop.name, shopCode: demoShop.shopCode || "DEMO1234" };
+        setLastShopInfoState(lastShop);
+        await AsyncStorage.setItem(LAST_SHOP_KEY, JSON.stringify(lastShop));
+        
         return { success: true };
       }
       return { success: false, error: "Invalid shop code or PIN" };
@@ -457,6 +491,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
       await AsyncStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(currentShop));
       await AsyncStorage.removeItem(LOCK_TIMESTAMP_KEY);
+      
+      const lastShop: LastShopInfo = { 
+        name: shopData.name, 
+        shopCode: shopData.shop_code,
+        logo: shopData.logo 
+      };
+      setLastShopInfoState(lastShop);
+      await AsyncStorage.setItem(LAST_SHOP_KEY, JSON.stringify(lastShop));
 
       await supabase
         .from("users")
@@ -811,6 +853,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const lookupShopByCode = async (shopCode: string): Promise<{ success: boolean; shop?: LastShopInfo; error?: string }> => {
+    if (!isSupabaseConfigured()) {
+      if (shopCode.toUpperCase() === "DEMO1234") {
+        return {
+          success: true,
+          shop: {
+            name: "Demo Agrovet",
+            shopCode: "DEMO1234",
+          },
+        };
+      }
+      return { success: false, error: "Invalid shop code" };
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, error: "Database not configured" };
+    }
+
+    try {
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("name, shop_code, logo")
+        .eq("shop_code", shopCode.toUpperCase())
+        .single();
+
+      if (shopError || !shopData) {
+        return { success: false, error: "Shop not found. Please check the shop code." };
+      }
+
+      return {
+        success: true,
+        shop: {
+          name: shopData.name,
+          shopCode: shopData.shop_code,
+          logo: shopData.logo,
+        },
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Failed to lookup shop" };
+    }
+  };
+
+  const setLastShopInfo = async (shopInfo: LastShopInfo | null): Promise<void> => {
+    setLastShopInfoState(shopInfo);
+    if (shopInfo) {
+      await AsyncStorage.setItem(LAST_SHOP_KEY, JSON.stringify(shopInfo));
+    } else {
+      await AsyncStorage.removeItem(LAST_SHOP_KEY);
+    }
+  };
+
+  const clearLastShopInfo = async (): Promise<void> => {
+    setLastShopInfoState(null);
+    await AsyncStorage.removeItem(LAST_SHOP_KEY);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -820,6 +919,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLocked,
         staffList,
+        lastShopInfo,
         adminLogin,
         staffLogin,
         unlockWithPin,
@@ -832,6 +932,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateStaffPin,
         loadStaffList,
         resetInactivityTimer,
+        lookupShopByCode,
+        setLastShopInfo,
+        clearLastShopInfo,
       }}
     >
       {children}
