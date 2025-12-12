@@ -39,10 +39,13 @@ AgroVet POS is a React Native/Expo Point of Sale application designed for agricu
 ```
 
 ## Features
-- **Multi-tenant Authentication**: Each shop has independent users, roles, and customization
-  - Email/password login with Supabase Auth
+- **Hybrid Authentication System**: Designed for shared tablet environments
+  - **Admin Login**: Email/password for shop owners and administrators (secure, remote-capable)
+  - **Staff Login**: Shop code + 4-digit PIN for daily staff access (fast, tablet-friendly)
+  - **License Key Registration**: New shops require a valid license key to register
+  - **Inactivity Lock**: Screen locks after 5 minutes of inactivity, requiring PIN to unlock
   - Role-based access control (admin, manager, cashier)
-  - User management for admins to invite and manage staff
+  - User management for admins to create staff members with PINs
   - Demo mode fallback when Supabase is not configured
 - **Shop Branding**: Dynamic shop name display (currently: Mazao Animal Supplies)
 - **POS Interface**: Quick product search, barcode scanning, cart management
@@ -90,7 +93,10 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
 ## Recent Changes
-- December 2024: Added multi-tenant authentication system with Supabase Auth, login/signup screens, role-based access control, and user management
+- December 2024: Redesigned authentication with dual login modes (admin email/password, staff shop code + PIN)
+- December 2024: Added 5-minute inactivity screen lock with PIN re-entry
+- December 2024: Added license key requirement for new shop registration (APK distribution control)
+- December 2024: Updated User Management to support creating staff with PINs
 - December 2024: Combined Add Product and Add Stock screens into unified AddOrRestockScreen for streamlined workflow
 - December 2024: Added receipt processing modes (Historical Data Only vs Add to Current Stock) with price history tracking
 - December 2024: Added dual inventory item types (Unit/Countable vs Bulk/Divisible) with proper tracking
