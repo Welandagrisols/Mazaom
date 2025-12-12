@@ -93,6 +93,7 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
 ## Recent Changes
+- December 2024: Added shop personalization - login screen remembers last shop name with "Switch Shop" option
 - December 2024: Redesigned authentication with dual login modes (admin email/password, staff shop code + PIN)
 - December 2024: Added 5-minute inactivity screen lock with PIN re-entry
 - December 2024: Added license key requirement for new shop registration (APK distribution control)
