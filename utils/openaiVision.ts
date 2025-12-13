@@ -4,9 +4,9 @@ import Constants from 'expo-constants';
 
 const getApiKey = (): string => {
   // Check multiple sources for API key
-  const envKey = process.env.OPENAI_API_KEY;
+  const envKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_KEY;
   const expoKey = Constants.expoConfig?.extra?.openaiApiKey;
-  const windowKey = typeof window !== 'undefined' && (window as unknown as Record<string, string>).OPENAI_API_KEY;
+  const windowKey = typeof window !== 'undefined' && ((window as unknown as Record<string, string>).OPENAI_API_KEY || (window as unknown as Record<string, string>).OPEN_AI_KEY);
   
   const apiKey = envKey || expoKey || windowKey || '';
   
