@@ -64,7 +64,10 @@ export default function StaffLoginScreen({ onNavigateToAdminLogin }: StaffLoginS
               <Feather name="shopping-bag" size={48} color="#FFFFFF" />
             </View>
             <Text style={[styles.appName, { color: Colors.primary.main }]}>
-              Agrisols Systems
+              AgroVet POS
+            </Text>
+            <Text style={[styles.byLine, { color: theme.textSecondary }]}>
+              by Agrisols Systems
             </Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               Staff Login
@@ -166,6 +169,11 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  byLine: {
+    fontSize: 14,
     textAlign: "center",
     marginBottom: 8,
   },
