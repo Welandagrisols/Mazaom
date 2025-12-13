@@ -64,7 +64,7 @@ export default function StaffLoginScreen({ onNavigateToAdminLogin }: StaffLoginS
               <Feather name="shopping-bag" size={48} color="#FFFFFF" />
             </View>
             <Text style={[styles.appName, { color: Colors.primary.main }]}>
-              Mazao Animal Supplies
+              Agrisols Systems
             </Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               Staff Login
