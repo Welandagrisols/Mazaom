@@ -7,7 +7,7 @@ import { Spacing, Colors } from "@/constants/theme";
 
 export function ShopHeaderTitle() {
   const { shop } = useAuth();
-  const shopName = shop?.name || "Mazao Animal Supplies";
+  const shopName = shop?.name || "Agrisols Systems";
 
   return (
     <View style={styles.container}>
