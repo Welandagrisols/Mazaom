@@ -65,7 +65,8 @@ export default {
         projectId: "4978aa1b-9880-4fb1-ad30-c1257e9e782f"
       },
       supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      openaiApiKey: process.env.OPEN_AI_KEY
     }
   }
 };
