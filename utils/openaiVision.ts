@@ -82,7 +82,7 @@ export async function extractReceiptData(imageUri: string): Promise<ExtractedRec
       console.log('[OpenAI] Reading local file as base64');
       try {
         const base64 = await FileSystem.readAsStringAsync(imageUri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64' as const,
         });
         const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
         base64Image = `data:${mimeType};base64,${base64}`;
