@@ -1,0 +1,58 @@
+~/workspace$ # 1. Install EAS CLI globally
+npm install -g eas-cli
+
+# 2. Login to your Expo account (you'll need to create one at expo.dev if you don't have one)
+eas login
+
+# 3. Configure EAS for your project (run this once)
+eas build:configure
+
+# 4. Build APK for Android (development/testing)
+eas build --platform android --profile preview
+
+# OR for a production AAB (for Google Play Store):
+eas build --platform android --profile production
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@6.0.4: Glob versions prior to v9 are no longer supported
+npm warn deprecated rimraf@2.4.5: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated sudo-prompt@9.1.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @oclif/screen@3.0.8: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @xmldom/xmldom@0.7.13: this version is no longer supported, please update to at least 0.8.*
+
+added 465 packages in 17s
+
+60 packages are looking for funding
+  run `npm fund` for details
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+✔ Email or username … welandagrisols@gmail.com
+✔ Password … ************
+Logged in
+You don't have the required permissions to perform this operation.
+
+This can sometimes happen if you are logged in as incorrect user.
+Run eas whoami to check the username you are logged in as.
+Run eas login to change the account.
+
+Original error message: Entity not authorized: AppEntity[4978aa1b-9880-4fb1-ad30-c1257e9e782f] (viewer = RegularUserViewerContext[0c1e5613-2191-42c3-b6d7-07c31011516b], action = READ, ruleIndex = -1)
+Request ID: 878a70eb-8a7b-4199-8787-5dc0a434cbdb
+    Error: GraphQL request failed.
+You don't have the required permissions to perform this operation.
+
+This can sometimes happen if you are logged in as incorrect user.
+Run eas whoami to check the username you are logged in as.
+Run eas login to change the account.
+
+Original error message: Entity not authorized: AppEntity[4978aa1b-9880-4fb1-ad30-c1257e9e782f] (viewer = RegularUserViewerContext[0c1e5613-2191-42c3-b6d7-07c31011516b], action = READ, ruleIndex = -1)
+Request ID: 8849d5f1-4ab0-4199-97c8-8d1209433eff
+    Error: GraphQL request failed.
+You don't have the required permissions to perform this operation.
+
+This can sometimes happen if you are logged in as incorrect user.
+Run eas whoami to check the username you are logged in as.
+Run eas login to change the account.
+
+Original error message: Entity not authorized: AppEntity[4978aa1b-9880-4fb1-ad30-c1257e9e782f] (viewer = RegularUserViewerContext[0c1e5613-2191-42c3-b6d7-07c31011516b], action = READ, ruleIndex = -1)
+Request ID: f0b4d366-591c-4318-bc0d-c3f840ae60cb
+    Error: GraphQL request failed.
+~/workspace$ 
