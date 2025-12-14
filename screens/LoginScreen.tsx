@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth, LastShopInfo } from "@/context/AuthContext";
 import { Colors } from "@/constants/theme";
 import { useTheme } from "@/hooks/useTheme";
+import { getSupabase, isSupabaseConfigured } from "@/utils/supabase";
 
 interface LoginScreenProps {
   onNavigateToSignup: () => void;
@@ -33,6 +34,9 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
   const [showShopCodeModal, setShowShopCodeModal] = useState(false);
   const [shopCodeInput, setShopCodeInput] = useState("");
   const [isLookingUpShop, setIsLookingUpShop] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const displayedShopName = lastShopInfo?.name || "AgroVet POS";
 
@@ -78,6 +82,54 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
   const handleClearShop = async () => {
     await clearLastShopInfo();
     setShowShopCodeModal(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!resetEmail.trim()) {
+      Alert.alert("Error", "Please enter your email address");
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      Alert.alert(
+        "Demo Mode",
+        "Password reset is not available in demo mode. Please contact your administrator."
+      );
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      Alert.alert("Error", "Database not configured");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        Alert.alert("Error", error.message);
+      } else {
+        Alert.alert(
+          "Check Your Email",
+          "If an account exists with this email, you will receive a password reset link shortly.",
+          [{ text: "OK", onPress: () => setShowForgotPasswordModal(false) }]
+        );
+        setResetEmail("");
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to send reset email");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const openForgotPasswordModal = () => {
+    setResetEmail(email);
+    setShowForgotPasswordModal(true);
   };
 
   return (
@@ -177,7 +229,7 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity>
+              <TouchableOpacity onPress={openForgotPasswordModal}>
                 <Text style={[styles.forgotPassword, { color: Colors.primary.main }]}>
                   Forgot Password?
                 </Text>
@@ -283,6 +335,65 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
                 </Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showForgotPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowForgotPasswordModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Reset Password
+              </Text>
+              <TouchableOpacity onPress={() => setShowForgotPasswordModal(false)}>
+                <Feather name="x" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalDescription, { color: theme.textSecondary }]}>
+              Enter your email address and we'll send you a link to reset your password.
+            </Text>
+
+            <View style={[styles.modalInputContainer, { backgroundColor: theme.backgroundSecondary }]}>
+              <Feather name="mail" size={20} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.modalInput, { color: theme.text }]}
+                placeholder="Enter your email"
+                placeholderTextColor={theme.textSecondary}
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.primary.main }]}
+              onPress={handleForgotPassword}
+              disabled={isResettingPassword}
+            >
+              {isResettingPassword ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.modalButtonText}>Send Reset Link</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => setShowForgotPasswordModal(false)}
+            >
+              <Text style={[styles.clearButtonText, { color: theme.textSecondary }]}>
+                Back to Login
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
