@@ -92,7 +92,19 @@ To enable cloud data persistence, run the SQL script in your Supabase SQL Editor
 
 The app automatically syncs data to Supabase when configured. If Supabase is not available, it falls back to local storage.
 
+## Supabase Edge Functions
+
+The app includes a Supabase Edge Function for secure OpenAI API access:
+
+- **`extract-receipt`**: Handles receipt OCR via OpenAI Vision API
+  - Requires authenticated users (JWT validation)
+  - OpenAI API key stored securely in Supabase secrets
+  - Falls back to direct API call in development
+
+See `supabase/EDGE_FUNCTION_SETUP.md` for deployment instructions.
+
 ## Recent Changes
+- December 2024: Added Supabase Edge Function backend proxy for secure OpenAI API access
 - December 2024: Added shop personalization - login screen remembers last shop name with "Switch Shop" option
 - December 2024: Redesigned authentication with dual login modes (admin email/password, staff shop code + PIN)
 - December 2024: Added 5-minute inactivity screen lock with PIN re-entry
