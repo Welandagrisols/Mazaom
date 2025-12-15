@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
+import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const getApiKey = (): string => {
-  // Check multiple sources for API key
   const envKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_KEY;
   const expoKey = Constants.expoConfig?.extra?.openaiApiKey;
   const windowKey = typeof window !== 'undefined' && ((window as unknown as Record<string, string>).OPENAI_API_KEY || (window as unknown as Record<string, string>).OPEN_AI_KEY);
@@ -11,14 +11,7 @@ const getApiKey = (): string => {
   const apiKey = envKey || expoKey || windowKey || '';
   
   if (!apiKey) {
-    console.error('[OpenAI] API key not found in any source');
-    console.log('[OpenAI] Checked:', {
-      hasEnvKey: !!envKey,
-      hasExpoKey: !!expoKey,
-      hasWindowKey: !!windowKey,
-    });
-  } else {
-    console.log('[OpenAI] API key found, length:', apiKey.length);
+    console.log('[OpenAI] API key not found locally (will use Edge Function if available)');
   }
   
   return apiKey;
@@ -58,52 +51,69 @@ export interface ExtractedReceiptData {
   total?: number;
 }
 
-export async function extractReceiptData(imageUri: string): Promise<ExtractedReceiptData> {
-  try {
-    console.log('[OpenAI] Starting extraction for image:', imageUri.substring(0, 50) + '...');
-    
-    // Verify API key before proceeding
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error('OpenAI API key is not configured. Please ensure OPENAI_API_KEY is set in your environment variables or Replit Secrets.');
-    }
-    console.log('[OpenAI] API key verified');
-    
-    let base64Image: string;
-    
-    if (imageUri.startsWith('data:')) {
-      base64Image = imageUri;
-      console.log('[OpenAI] Using data URI directly');
-    } else if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
-      // For cloud URLs, pass directly to OpenAI
-      base64Image = imageUri;
-      console.log('[OpenAI] Using cloud URL directly');
-    } else {
-      console.log('[OpenAI] Reading local file as base64');
-      try {
-        const base64 = await FileSystem.readAsStringAsync(imageUri, {
-          encoding: 'base64' as const,
-        });
-        const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
-        base64Image = `data:${mimeType};base64,${base64}`;
-        console.log('[OpenAI] Successfully converted to base64, size:', base64.length);
-      } catch (fileError) {
-        console.error('[OpenAI] Error reading file:', fileError);
-        throw new Error(`Failed to read image file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
-      }
-    }
-
-    console.log('[OpenAI] Calling OpenAI API with gpt-4o model');
-    console.log('[OpenAI] Image type:', base64Image.startsWith('data:') ? 'base64' : 'URL');
-    
-    let response;
+async function prepareImageData(imageUri: string): Promise<string> {
+  if (imageUri.startsWith('data:')) {
+    console.log('[OpenAI] Using data URI directly');
+    return imageUri;
+  } else if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+    console.log('[OpenAI] Using cloud URL directly');
+    return imageUri;
+  } else {
+    console.log('[OpenAI] Reading local file as base64');
     try {
-      response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a receipt OCR assistant for an agricultural/veterinary supply store. 
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: 'base64' as const,
+      });
+      const mimeType = imageUri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+      const result = `data:${mimeType};base64,${base64}`;
+      console.log('[OpenAI] Successfully converted to base64, size:', base64.length);
+      return result;
+    } catch (fileError) {
+      console.error('[OpenAI] Error reading file:', fileError);
+      throw new Error(`Failed to read image file: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+    }
+  }
+}
+
+async function extractViaEdgeFunction(imageData: string): Promise<ExtractedReceiptData> {
+  console.log('[OpenAI] Attempting extraction via Supabase Edge Function...');
+  
+  const supabase = getSupabase();
+  if (!supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase.functions.invoke('extract-receipt', {
+    body: { imageData },
+  });
+
+  if (error) {
+    console.error('[OpenAI] Edge Function error:', error);
+    throw new Error(`Edge Function failed: ${error.message}`);
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'Edge Function returned unsuccessful response');
+  }
+
+  console.log('[OpenAI] Edge Function extraction successful');
+  return data.data as ExtractedReceiptData;
+}
+
+async function extractViaDirectApi(imageData: string): Promise<ExtractedReceiptData> {
+  console.log('[OpenAI] Using direct API call (fallback)...');
+  
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('OpenAI API key is not configured. Please ensure OPENAI_API_KEY is set in your environment variables or Replit Secrets.');
+  }
+
+  const response = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: `You are a receipt OCR assistant for an agricultural/veterinary supply store. 
 Extract structured data from purchase receipts. Focus on identifying:
 - Supplier/vendor name
 - Receipt/invoice number
@@ -133,72 +143,71 @@ Return ONLY valid JSON in this exact format:
 }
 
 If you cannot read certain values, use reasonable defaults or null. Prices should be in the local currency (KES - Kenyan Shillings if visible, otherwise use the numbers shown).`
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Please extract all product and pricing information from this receipt image. Return the data as JSON.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: base64Image,
-                detail: 'high'
-              }
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Please extract all product and pricing information from this receipt image. Return the data as JSON.'
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageData,
+              detail: 'high'
             }
-          ]
-        }
-      ],
-      max_tokens: 2000,
-      temperature: 0.1,
-    });
-    } catch (apiError) {
-      console.error('[OpenAI] API call failed:', apiError);
-      if (apiError instanceof Error) {
-        // Check for common API errors
-        if (apiError.message.includes('401') || apiError.message.includes('authentication')) {
-          throw new Error('OpenAI API authentication failed. Please check that your API key is valid and has sufficient credits.');
-        } else if (apiError.message.includes('429')) {
-          throw new Error('OpenAI API rate limit exceeded. Please wait a moment and try again.');
-        } else if (apiError.message.includes('network') || apiError.message.includes('fetch')) {
-          throw new Error('Network error: Unable to reach OpenAI API. Please check your internet connection.');
-        }
-        throw new Error(`OpenAI API error: ${apiError.message}`);
+          }
+        ]
       }
-      throw new Error('Failed to call OpenAI API. Please try again.');
-    }
+    ],
+    max_tokens: 2000,
+    temperature: 0.1,
+  });
 
-    console.log('[OpenAI] Received response from API');
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI API. Please check your API key and try again.');
-    }
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from OpenAI API.');
+  }
 
-    console.log('[OpenAI] Response content:', content.substring(0, 200) + '...');
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('[OpenAI] Could not find JSON in response:', content);
-      throw new Error('Could not parse JSON from OpenAI response. The image may not contain readable receipt data.');
-    }
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Could not parse JSON from OpenAI response.');
+  }
 
-    const extractedData = JSON.parse(jsonMatch[0]) as ExtractedReceiptData;
-    console.log('[OpenAI] Successfully parsed data. Items found:', extractedData.items?.length || 0);
+  const extractedData = JSON.parse(jsonMatch[0]) as ExtractedReceiptData;
+  if (!extractedData.items) {
+    extractedData.items = [];
+  }
+
+  return extractedData;
+}
+
+export async function extractReceiptData(imageUri: string): Promise<ExtractedReceiptData> {
+  try {
+    console.log('[OpenAI] Starting extraction for image:', imageUri.substring(0, 50) + '...');
     
-    if (!extractedData.items) {
-      extractedData.items = [];
+    const imageData = await prepareImageData(imageUri);
+    
+    if (isSupabaseConfigured()) {
+      try {
+        return await extractViaEdgeFunction(imageData);
+      } catch (edgeFunctionError) {
+        console.warn('[OpenAI] Edge Function failed, falling back to direct API:', edgeFunctionError);
+      }
     }
-
-    if (extractedData.items.length === 0) {
-      console.warn('[OpenAI] No items extracted from receipt');
-    }
-
-    return extractedData;
+    
+    return await extractViaDirectApi(imageData);
   } catch (error) {
     console.error('[OpenAI] Vision Error:', error);
     if (error instanceof Error) {
-      // Re-throw with more context
+      if (error.message.includes('401') || error.message.includes('authentication')) {
+        throw new Error('OpenAI API authentication failed. Please check that your API key is valid and has sufficient credits.');
+      } else if (error.message.includes('429')) {
+        throw new Error('OpenAI API rate limit exceeded. Please wait a moment and try again.');
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        throw new Error('Network error: Unable to reach OpenAI API. Please check your internet connection.');
+      }
       throw new Error(`OpenAI extraction failed: ${error.message}`);
     }
     throw error;
@@ -206,5 +215,5 @@ If you cannot read certain values, use reasonable defaults or null. Prices shoul
 }
 
 export function isOpenAIConfigured(): boolean {
-  return Boolean(getApiKey());
+  return Boolean(getApiKey()) || isSupabaseConfigured();
 }
