@@ -109,9 +109,10 @@ export default function StaffLoginScreen({ onNavigateToAdminLogin }: StaffLoginS
             </View>
 
             <TouchableOpacity
-              style={[styles.loginButton, { backgroundColor: Colors.primary.main }]}
+              style={[styles.loginButton, { backgroundColor: Colors.primary.main }, isLoading && { opacity: 0.7 }]}
               onPress={handleLogin}
               disabled={isLoading}
+              activeOpacity={0.7}
             >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -129,6 +130,7 @@ export default function StaffLoginScreen({ onNavigateToAdminLogin }: StaffLoginS
             <TouchableOpacity
               style={[styles.adminButton, { borderColor: Colors.primary.main }]}
               onPress={onNavigateToAdminLogin}
+              activeOpacity={0.7}
             >
               <Feather name="shield" size={20} color={Colors.primary.main} />
               <Text style={[styles.adminButtonText, { color: Colors.primary.main }]}>

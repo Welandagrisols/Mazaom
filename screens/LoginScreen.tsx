@@ -237,9 +237,10 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
             </View>
 
             <TouchableOpacity
-              style={[styles.loginButton, { backgroundColor: Colors.primary.main }]}
+              style={[styles.loginButton, { backgroundColor: Colors.primary.main }, isLoading && { opacity: 0.7 }]}
               onPress={handleLogin}
               disabled={isLoading}
+              activeOpacity={0.7}
             >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -257,6 +258,7 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
             <TouchableOpacity
               style={[styles.staffButton, { borderColor: Colors.primary.main }]}
               onPress={onNavigateToStaffLogin}
+              activeOpacity={0.7}
             >
               <Feather name="users" size={20} color={Colors.primary.main} />
               <Text style={[styles.staffButtonText, { color: Colors.primary.main }]}>
@@ -268,7 +270,7 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
               <Text style={[styles.signupText, { color: theme.textSecondary }]}>
                 New shop? Have a license key?
               </Text>
-              <TouchableOpacity onPress={onNavigateToSignup}>
+              <TouchableOpacity onPress={onNavigateToSignup} activeOpacity={0.7}>
                 <Text style={[styles.signupLink, { color: Colors.primary.main }]}>
                   {" "}Register
                 </Text>
@@ -314,9 +316,10 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
             </View>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: Colors.primary.main }]}
+              style={[styles.modalButton, { backgroundColor: Colors.primary.main }, isLookingUpShop && { opacity: 0.7 }]}
               onPress={handleLookupShop}
               disabled={isLookingUpShop}
+              activeOpacity={0.7}
             >
               {isLookingUpShop ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -375,9 +378,10 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
             </View>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: Colors.primary.main }]}
+              style={[styles.modalButton, { backgroundColor: Colors.primary.main }, isResettingPassword && { opacity: 0.7 }]}
               onPress={handleForgotPassword}
               disabled={isResettingPassword}
+              activeOpacity={0.7}
             >
               {isResettingPassword ? (
                 <ActivityIndicator color="#FFFFFF" />

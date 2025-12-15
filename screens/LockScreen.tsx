@@ -108,9 +108,10 @@ export default function LockScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.unlockButton, { backgroundColor: Colors.primary.main }]}
+          style={[styles.unlockButton, { backgroundColor: Colors.primary.main }, (isLoading || pin.length !== 4) && { opacity: 0.7 }]}
           onPress={handleUnlock}
           disabled={isLoading || pin.length !== 4}
+          activeOpacity={0.7}
         >
           {isLoading ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -122,7 +123,7 @@ export default function LockScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.switchUserButton} onPress={handleLogout}>
+        <TouchableOpacity style={styles.switchUserButton} onPress={handleLogout} activeOpacity={0.7}>
           <Feather name="users" size={18} color={theme.textSecondary} />
           <Text style={[styles.switchUserText, { color: theme.textSecondary }]}>
             Switch User

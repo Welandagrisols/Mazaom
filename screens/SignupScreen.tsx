@@ -87,7 +87,7 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
         >
           <View style={styles.content}>
             <View style={styles.header}>
-              <TouchableOpacity style={styles.backButton} onPress={onNavigateToLogin}>
+              <TouchableOpacity style={styles.backButton} onPress={onNavigateToLogin} activeOpacity={0.7}>
                 <Feather name="arrow-left" size={24} color={theme.text} />
               </TouchableOpacity>
               <Text style={[styles.title, { color: theme.text }]}>
@@ -206,9 +206,10 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
               </View>
 
               <TouchableOpacity
-                style={[styles.signupButton, { backgroundColor: Colors.primary.main }]}
+                style={[styles.signupButton, { backgroundColor: Colors.primary.main }, isLoading && { opacity: 0.7 }]}
                 onPress={handleSignup}
                 disabled={isLoading}
+                activeOpacity={0.7}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -221,7 +222,7 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                 <Text style={[styles.loginText, { color: theme.textSecondary }]}>
                   Already have an account?
                 </Text>
-                <TouchableOpacity onPress={onNavigateToLogin}>
+                <TouchableOpacity onPress={onNavigateToLogin} activeOpacity={0.7}>
                   <Text style={[styles.loginLink, { color: Colors.primary.main }]}>
                     {" "}Login
                   </Text>
