@@ -596,9 +596,11 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   modalButton: {
-    paddingVertical: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: "center",
+    marginBottom: 12,
   },
   modalButtonText: {
     color: "#FFFFFF",
@@ -608,7 +610,8 @@ const styles = StyleSheet.create({
   clearButton: {
     alignItems: "center",
     marginTop: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   clearButtonText: {
     fontSize: 14,

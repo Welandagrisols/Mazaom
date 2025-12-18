@@ -206,10 +206,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   loginButton: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 12,
     alignItems: "center",
     marginTop: 8,
+    marginBottom: 12,
   },
   loginButtonText: {
     color: "#FFFFFF",
@@ -233,10 +234,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 2,
     gap: 8,
+    marginBottom: 20,
   },
   adminButtonText: {
     fontSize: 16,
