@@ -10,7 +10,9 @@
     "web": "npx expo start --web",
     "lint": "npx expo lint",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
-    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\""
+    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
+    "build:apk": "npx eas build --profile preview --platform android",
+    "build:apk:prod": "npx eas build --profile production-apk --platform android"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
