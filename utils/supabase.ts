@@ -1,8 +1,41 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey || '';
+// Try to get from multiple sources for flexibility
+const getSupabaseUrl = (): string => {
+  // First try process.env (works in Node/server context)
+  if (process.env.SUPABASE_URL && !process.env.SUPABASE_URL.startsWith('$')) {
+    return process.env.SUPABASE_URL;
+  }
+  // Then try app.json extra (works in Expo)
+  if (Constants.expoConfig?.extra?.supabaseUrl && !Constants.expoConfig.extra.supabaseUrl.startsWith('$')) {
+    return Constants.expoConfig.extra.supabaseUrl;
+  }
+  // Then try window global (for web)
+  if (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) {
+    return (window as any).__SUPABASE_URL__;
+  }
+  return '';
+};
+
+const getSupabaseKey = (): string => {
+  // First try process.env (works in Node/server context)
+  if (process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_ANON_KEY.startsWith('$')) {
+    return process.env.SUPABASE_ANON_KEY;
+  }
+  // Then try app.json extra (works in Expo)
+  if (Constants.expoConfig?.extra?.supabaseAnonKey && !Constants.expoConfig.extra.supabaseAnonKey.startsWith('$')) {
+    return Constants.expoConfig.extra.supabaseAnonKey;
+  }
+  // Then try window global (for web)
+  if (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) {
+    return (window as any).__SUPABASE_ANON_KEY__;
+  }
+  return '';
+};
+
+const supabaseUrl = getSupabaseUrl();
+const supabaseAnonKey = getSupabaseKey();
 
 let _supabase: SupabaseClient | null = null;
 
@@ -67,4 +100,4 @@ export const supabase = {
   },
 };
 
-export const getSupabaseUrl = (): string => supabaseUrl;
+export const getSupabaseConfigUrl = (): string => supabaseUrl;
