@@ -29,6 +29,7 @@ interface AuthContextType {
   unlockWithPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
   signupWithLicense: (
     licenseKey: string,
+    phone: string,
     email: string,
     password: string,
     fullName: string,
@@ -574,18 +575,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // Verify license key with landing page API
+      // Only verify the key itself - phone is the admin's contact, not the license holder's
       const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website.replit.dev/api/licenses/verify";
       const verifyResponse = await fetch(licenseApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: licenseKey, phone }),
+        body: JSON.stringify({ key: licenseKey }),
       });
 
       if (verifyResponse.status === 404) {
         return { success: false, error: "License key not found" };
       }
       if (verifyResponse.status === 401) {
-        return { success: false, error: "Phone number doesn't match this license" };
+        return { success: false, error: "License key is not valid or already in use" };
       }
       if (verifyResponse.status === 403) {
         return { success: false, error: "This license key has expired" };
