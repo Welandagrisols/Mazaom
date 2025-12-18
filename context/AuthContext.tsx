@@ -557,6 +557,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signupWithLicense = async (
     licenseKey: string,
+    phone: string,
     email: string,
     password: string,
     fullName: string,
@@ -572,24 +573,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data: licenseData, error: licenseError } = await supabase
-        .from("license_keys")
-        .select("*")
-        .eq("key", licenseKey.toUpperCase())
-        .single();
+      // Verify license key with landing page API
+      const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website.replit.dev/api/licenses/verify";
+      const verifyResponse = await fetch(licenseApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: licenseKey, phone }),
+      });
 
-      if (licenseError || !licenseData) {
+      if (verifyResponse.status === 404) {
+        return { success: false, error: "License key not found" };
+      }
+      if (verifyResponse.status === 401) {
+        return { success: false, error: "Phone number doesn't match this license" };
+      }
+      if (verifyResponse.status === 403) {
+        return { success: false, error: "This license key has expired" };
+      }
+      if (!verifyResponse.ok) {
+        return { success: false, error: "Failed to verify license key" };
+      }
+
+      const licenseData = await verifyResponse.json();
+      if (!licenseData.success) {
         return { success: false, error: "Invalid license key" };
       }
 
-      if (licenseData.is_used) {
-        return { success: false, error: "This license key has already been used" };
-      }
-
-      if (licenseData.expires_at && new Date(licenseData.expires_at) < new Date()) {
-        return { success: false, error: "This license key has expired" };
-      }
-
+      // License verified! Now create shop and user in Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -635,15 +645,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userError) {
         return { success: false, error: "Failed to create user profile" };
       }
-
-      await supabase
-        .from("license_keys")
-        .update({
-          is_used: true,
-          used_at: new Date().toISOString(),
-          used_by_shop_id: newShop.id,
-        })
-        .eq("id", licenseData.id);
 
       return { success: true };
     } catch (error: any) {

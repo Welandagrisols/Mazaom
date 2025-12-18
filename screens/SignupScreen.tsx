@@ -25,6 +25,7 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
   const { signupWithLicense } = useAuth();
   const { theme } = useTheme();
   const [licenseKey, setLicenseKey] = useState("");
+  const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +37,11 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
   const handleSignup = async () => {
     if (!licenseKey.trim()) {
       Alert.alert("Error", "Please enter your license key");
+      return;
+    }
+
+    if (!phone.trim()) {
+      Alert.alert("Error", "Please enter your phone number");
       return;
     }
 
@@ -57,6 +63,7 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
     setIsLoading(true);
     const result = await signupWithLicense(
       licenseKey.trim().toUpperCase(),
+      phone.trim(),
       email.trim(),
       password,
       fullName.trim(),
@@ -113,6 +120,22 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
                     onChangeText={(text) => setLicenseKey(text.toUpperCase())}
                     autoCapitalize="characters"
                     autoCorrect={false}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.text }]}>Phone Number *</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary }]}>
+                  <Feather name="phone" size={20} color={theme.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: theme.text }]}
+                    placeholder="e.g. +254712345678"
+                    placeholderTextColor={theme.textSecondary}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    editable={!isLoading}
                   />
                 </View>
               </View>
