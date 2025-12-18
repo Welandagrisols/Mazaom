@@ -10,6 +10,15 @@ const LOCK_TIMESTAMP_KEY = "@agrovet_lock_timestamp";
 const LAST_SHOP_KEY = "@agrovet_last_shop";
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
 
+// Generate a proper UUID v4 format string
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export interface LastShopInfo {
   name: string;
   shopCode: string;
@@ -651,7 +660,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Step 3: Create Supabase auth user
-      let authUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
+      let authUserId = generateUUID();
       try {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -664,8 +673,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (authErr) {
         console.log("Supabase auth failed, using fallback UUID:", authErr);
-        // Make absolutely unique by adding another timestamp component
-        authUserId = `user-${Date.now()}-${performance.now()}-${Math.random().toString(36).substr(2, 15)}`;
+        // Generate a new UUID if auth fails (ensures uniqueness)
+        authUserId = generateUUID();
       }
 
       // Step 4: Create user record
