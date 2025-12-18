@@ -575,7 +575,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // Step 1: Verify license key
-      const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website.replit.dev/api/licenses/verify";
+      const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website--ngenojosphat11.replit.app/api/licenses/verify";
       console.log("License verification request:", { licenseApiUrl, key: licenseKey });
       
       const isValidLicenseFormat = /^AGRO-\d{4}-\d{4}-\d{4}$/.test(licenseKey);
