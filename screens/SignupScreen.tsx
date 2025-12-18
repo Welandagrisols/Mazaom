@@ -72,6 +72,15 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
     setIsLoading(false);
 
     if (result.success) {
+      // Clear form
+      setLicenseKey("");
+      setPhone("");
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setShopName("");
+      
       Alert.alert(
         "Success",
         "Your shop has been created! Please check your email to verify your account, then login.",
