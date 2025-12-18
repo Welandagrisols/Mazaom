@@ -71,9 +71,9 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
 
 function generateShopCode(shopName: string): string {
   const year = new Date().getFullYear();
-  // Remove spaces and convert to simple format: ShopName + Year
-  const cleanName = shopName.trim().replace(/\s+/g, '');
-  return `${cleanName}${year}`;
+  // Extract only the first word and convert to simple format: FirstWord + Year
+  const firstName = shopName.trim().split(/\s+/)[0];
+  return `${firstName}${year}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
