@@ -651,7 +651,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Step 3: Create Supabase auth user
-      let authUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      let authUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
       try {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -664,6 +664,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (authErr) {
         console.log("Supabase auth failed, using fallback UUID:", authErr);
+        // Make absolutely unique by adding another timestamp component
+        authUserId = `user-${Date.now()}-${performance.now()}-${Math.random().toString(36).substr(2, 15)}`;
       }
 
       // Step 4: Create user record
