@@ -414,29 +414,31 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: "center",
+    paddingHorizontal: 20,
+    justifyContent: "flex-start",
+    paddingTop: 16,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 24,
+    marginTop: 8,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   appName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: "center",
   },
   switchShopButton: {
@@ -452,7 +454,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   form: {
-    gap: 16,
+    gap: 12,
   },
   inputGroup: {
     gap: 8,
@@ -477,6 +479,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginVertical: 4,
   },
   rememberMe: {
     flexDirection: "row",
@@ -499,10 +502,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   loginButton: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
+    marginBottom: 4,
   },
   loginButtonText: {
     color: "#FFFFFF",
@@ -512,7 +516,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    marginVertical: 4,
   },
   dividerLine: {
     flex: 1,
@@ -526,10 +530,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 2,
     gap: 8,
+    marginBottom: 4,
   },
   staffButtonText: {
     fontSize: 16,
@@ -538,7 +543,8 @@ const styles = StyleSheet.create({
   signupRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 16,
   },
   signupText: {
     fontSize: 14,

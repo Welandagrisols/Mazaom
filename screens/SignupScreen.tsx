@@ -255,30 +255,30 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   backButton: {
     marginBottom: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700" as const,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
   },
   form: {
-    gap: 16,
+    gap: 12,
   },
   licenseBox: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 2,
     gap: 12,
@@ -306,8 +306,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 12,
     gap: 12,
   },
@@ -316,10 +316,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   signupButton: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 4,
   },
   signupButtonText: {
     color: "#FFFFFF",
@@ -329,7 +330,8 @@ const styles = StyleSheet.create({
   loginRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 12,
   },
   loginText: {
     fontSize: 14,
@@ -341,11 +343,11 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     gap: 8,
-    marginTop: 8,
-    marginBottom: 32,
+    marginTop: 4,
+    marginBottom: 24,
   },
   infoText: {
     flex: 1,
