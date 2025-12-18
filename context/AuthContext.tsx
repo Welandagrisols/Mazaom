@@ -69,13 +69,11 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   cashier: 1,
 };
 
-function generateShopCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+function generateShopCode(shopName: string): string {
+  const year = new Date().getFullYear();
+  // Remove spaces and convert to simple format: ShopName + Year
+  const cleanName = shopName.trim().replace(/\s+/g, '');
+  return `${cleanName}${year}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -639,7 +637,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Step 2: Create shop in Supabase
-      const shopCode = generateShopCode();
+      const shopCode = generateShopCode(shopName);
       const { data: newShop, error: shopError } = await supabase
         .from("shops")
         .insert({
