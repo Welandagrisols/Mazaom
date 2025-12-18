@@ -84,7 +84,14 @@ export default function SignupScreen({ onNavigateToLogin }: SignupScreenProps) {
       Alert.alert(
         "Success",
         "Your shop has been created! Please check your email to verify your account, then login.",
-        [{ text: "OK", onPress: onNavigateToLogin }]
+        [{ 
+          text: "OK", 
+          onPress: () => {
+            setTimeout(() => {
+              onNavigateToLogin();
+            }, 500);
+          }
+        }]
       );
     } else {
       Alert.alert("Signup Failed", result.error || "Failed to create account");
