@@ -275,14 +275,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 32,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   backButton: {
     marginBottom: 16,
@@ -296,7 +297,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   form: {
-    gap: 12,
+    gap: 10,
   },
   licenseBox: {
     flexDirection: "row",
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
     marginTop: 4,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   infoText: {
     flex: 1,
