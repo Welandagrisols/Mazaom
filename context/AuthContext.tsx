@@ -577,11 +577,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Verify license key with landing page API
       // Only verify the key itself - phone is the admin's contact, not the license holder's
       const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website.replit.dev/api/licenses/verify";
+      
+      console.log("License verification request:", { licenseApiUrl, key: licenseKey });
+      
       const verifyResponse = await fetch(licenseApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: licenseKey }),
       });
+
+      console.log("License verification response status:", verifyResponse.status);
+      
+      let licenseData: any = {};
+      try {
+        licenseData = await verifyResponse.json();
+        console.log("License verification response data:", licenseData);
+      } catch (e) {
+        console.log("Could not parse license response as JSON");
+      }
 
       if (verifyResponse.status === 404) {
         return { success: false, error: "License key not found" };
@@ -593,12 +606,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: "This license key has expired" };
       }
       if (!verifyResponse.ok) {
-        return { success: false, error: "Failed to verify license key" };
+        const errorMsg = licenseData?.error || licenseData?.message || "Failed to verify license key";
+        console.log("License verification failed:", errorMsg);
+        return { success: false, error: errorMsg };
       }
 
-      const licenseData = await verifyResponse.json();
       if (!licenseData.success) {
-        return { success: false, error: "Invalid license key" };
+        return { success: false, error: licenseData.message || "Invalid license key" };
       }
 
       // License verified! Now create shop and user in Supabase
