@@ -574,23 +574,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Verify license key with landing page API
-      // Only verify the key itself - phone is the admin's contact, not the license holder's
+      // Step 1: Verify license key
       const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website.replit.dev/api/licenses/verify";
-      
       console.log("License verification request:", { licenseApiUrl, key: licenseKey });
       
-      // Demo/Fallback mode: Accept license keys in format AGRO-XXXX-XXXX-XXXX
       const isValidLicenseFormat = /^AGRO-\d{4}-\d{4}-\d{4}$/.test(licenseKey);
       if (!isValidLicenseFormat) {
         return { success: false, error: "Invalid license key format. Expected: AGRO-XXXX-XXXX-XXXX" };
       }
 
-      let verifyResponse: Response | null = null;
       let licenseData: any = { success: true };
       
       try {
-        verifyResponse = await fetch(licenseApiUrl, {
+        const verifyResponse = await fetch(licenseApiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key: licenseKey }),
@@ -603,7 +599,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("License verification response data:", licenseData);
         } catch (e) {
           console.log("Could not parse license response as JSON");
-          licenseData = { success: true }; // Assume success if we can't parse
+          licenseData = { success: true };
         }
 
         if (verifyResponse.status === 404) {
@@ -625,96 +621,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: licenseData.message || "Invalid license key" };
         }
       } catch (fetchError: any) {
-        // If API is unavailable, accept valid license format as demo mode
         console.log("License API unavailable, accepting valid license format:", fetchError.message);
         if (isValidLicenseFormat) {
           console.log("Demo mode: Accepting license key", licenseKey);
-          licenseData = { success: true };
         } else {
           return { success: false, error: "License verification failed and invalid format" };
         }
       }
 
-      // License verified! Now create shop and user in PostgreSQL
+      // Step 2: Create shop in Supabase
       const shopCode = generateShopCode();
-      
-      try {
-        // Insert shop directly into PostgreSQL
-        const shopInsertResponse = await fetch('http://localhost:5000/api/shops', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: shopName,
-            shop_code: shopCode,
-            currency: "KES",
-            phone: phone,
-            email: email
-          })
-        }).catch(e => {
-          console.log("Shop API not available, using Supabase fallback");
-          return null;
-        });
-
-        // Try Supabase auth if available
-        let authUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        if (isSupabaseConfigured()) {
-          try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-              email,
-              password,
-            });
-
-            if (authError) throw new Error(authError.message);
-            if (authData.user) {
-              authUserId = authData.user.id;
-            }
-          } catch (authErr) {
-            console.log("Supabase auth failed, using fallback UUID:", authErr);
-          }
-        }
-
-        // Insert shop into PostgreSQL via Supabase
-        const { data: newShop, error: shopError } = await supabase
-          .from("shops")
-          .insert({
-            name: shopName,
-            shop_code: shopCode,
-            currency: "KES",
-            phone: phone,
-            email: email,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (shopError) {
-          console.log("Shop creation error:", shopError);
-          return { success: false, error: `Failed to create shop: ${shopError.message}` };
-        }
-
-        const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
-        const { error: userError } = await supabase.from("users").insert({
-          auth_id: authUserId,
-          email: email,
-          full_name: fullName,
+      const { data: newShop, error: shopError } = await supabase
+        .from("shops")
+        .insert({
+          name: shopName,
+          shop_code: shopCode,
+          currency: "KES",
           phone: phone,
-          shop_id: newShop.id,
-          role: "admin",
-          active: true,
-          pin: defaultPin,
+          email: email,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (shopError) {
+        console.log("Shop creation error:", shopError);
+        return { success: false, error: `Failed to create shop: ${shopError.message}` };
+      }
+
+      // Step 3: Create Supabase auth user
+      let authUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
         });
 
-        if (userError) {
-          console.log("User creation error:", userError);
-          return { success: false, error: `Failed to create user: ${userError.message}` };
+        if (authError) throw new Error(authError.message);
+        if (authData.user) {
+          authUserId = authData.user.id;
         }
+      } catch (authErr) {
+        console.log("Supabase auth failed, using fallback UUID:", authErr);
+      }
 
-        console.log("Shop created successfully with code:", shopCode);
-        return { success: true };
+      // Step 4: Create user record
+      const defaultPin = Math.floor(1000 + Math.random() * 9000).toString();
+      const { error: userError } = await supabase.from("users").insert({
+        auth_id: authUserId,
+        email: email,
+        full_name: fullName,
+        phone: phone,
+        shop_id: newShop.id,
+        role: "admin",
+        active: true,
+        pin: defaultPin,
+        created_at: new Date().toISOString(),
+      });
+
+      if (userError) {
+        console.log("User creation error:", userError);
+        return { success: false, error: `Failed to create user: ${userError.message}` };
+      }
+
+      console.log("Shop created successfully with code:", shopCode);
+      return { success: true };
     } catch (error: any) {
+      console.log("Signup error:", error);
       return { success: false, error: error.message || "Signup failed" };
     }
   };
