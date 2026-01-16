@@ -55,6 +55,7 @@ export const isSupabaseConfigured = (): boolean => {
 
 export const getSupabase = (): SupabaseClient | null => {
   if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured. Using mock storage.');
     return null;
   }
   
@@ -80,6 +81,10 @@ export const supabase = {
         update: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
         upsert: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
         delete: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
+        eq: () => ({ 
+           select: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
+           single: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') })
+        }),
       };
     }
     return client.from(table);
@@ -98,6 +103,14 @@ export const supabase = {
       return client.storage.from(bucket);
     },
   },
+  auth: {
+    getSession: () => getSupabase()?.auth.getSession() || Promise.resolve({ data: { session: null }, error: null }),
+    signInWithPassword: (creds: any) => getSupabase()?.auth.signInWithPassword(creds) || Promise.resolve({ data: { user: null }, error: new Error('Supabase not configured') }),
+    signUp: (creds: any) => getSupabase()?.auth.signUp(creds) || Promise.resolve({ data: { user: null }, error: new Error('Supabase not configured') }),
+    signOut: () => getSupabase()?.auth.signOut() || Promise.resolve({ error: null }),
+    onAuthStateChange: (cb: any) => getSupabase()?.auth.onAuthStateChange(cb) || { data: { subscription: { unsubscribe: () => {} } } },
+    getUser: () => getSupabase()?.auth.getUser() || Promise.resolve({ data: { user: null }, error: null }),
+  }
 };
 
 export const getSupabaseConfigUrl = (): string => supabaseUrl;
