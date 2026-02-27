@@ -627,6 +627,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!licenseData.success) {
           return { success: false, error: licenseData.message || "Invalid license key" };
         }
+        
+        // Mark license as used in our database if it exists there
+        try {
+          const { error: updateError } = await supabase
+            .from("licenses")
+            .update({ is_used: true, used_at: new Date().toISOString() })
+            .eq("key", licenseKey);
+          
+          if (updateError) {
+            console.log("Note: Could not update local licenses table (might not exist or key not found), continuing anyway.");
+          }
+        } catch (dbErr) {
+          console.log("Local database license update error (ignoring):", dbErr);
+        }
       } catch (fetchError: any) {
         console.log("License API unavailable, accepting valid license format:", fetchError.message);
         if (isValidLicenseFormat) {
