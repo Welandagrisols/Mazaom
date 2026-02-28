@@ -581,9 +581,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Step 1: Verify license key
-      const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website--ngenojosphat11.replit.app/api/licenses/verify";
-      console.log("License verification request:", { licenseApiUrl, key: licenseKey });
+      // Step 1: Verify and Activate license key
+      const licenseApiUrl = process.env.EXPO_PUBLIC_LICENSE_API_URL || "https://website--ngenojosphat11.replit.app/api/licenses/activate";
+      console.log("License activation request:", { licenseApiUrl, key: licenseKey, shopName });
       
       const isValidLicenseFormat = /^AGRO-\d{4}-\d{4}-\d{4}$/.test(licenseKey);
       if (!isValidLicenseFormat) {
@@ -596,14 +596,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const verifyResponse = await fetch(licenseApiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: licenseKey }),
+          body: JSON.stringify({ key: licenseKey, shopName: shopName }),
         });
 
-        console.log("License verification response status:", verifyResponse.status);
+        console.log("License activation response status:", verifyResponse.status);
         
         try {
           licenseData = await verifyResponse.json();
-          console.log("License verification response data:", licenseData);
+          console.log("License activation response data:", licenseData);
         } catch (e) {
           console.log("Could not parse license response as JSON");
           licenseData = { success: true };
@@ -619,8 +619,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: "This license key has expired" };
         }
         if (!verifyResponse.ok && verifyResponse.status !== 200) {
-          const errorMsg = licenseData?.error || licenseData?.message || "Failed to verify license key";
-          console.log("License verification failed:", errorMsg);
+          const errorMsg = licenseData?.error || licenseData?.message || "Failed to activate license key";
+          console.log("License activation failed:", errorMsg);
           return { success: false, error: errorMsg };
         }
 
@@ -628,15 +628,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: licenseData.message || "Invalid license key" };
         }
         
-        // Mark license as used in our database if it exists there
+        // Mark license as used in our local database if it exists there
         try {
           const { error: updateError } = await supabase
             .from("licenses")
-            .update({ is_used: true, used_at: new Date().toISOString() })
+            .update({ is_used: true, used_at: new Date().toISOString(), shop_name: shopName })
             .eq("key", licenseKey);
           
           if (updateError) {
-            console.log("Note: Could not update local licenses table (might not exist or key not found), continuing anyway.");
+            console.log("Note: Local licenses table update skipped or failed (continuing as API handled activation).");
           }
         } catch (dbErr) {
           console.log("Local database license update error (ignoring):", dbErr);
