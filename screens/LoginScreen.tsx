@@ -106,6 +106,8 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
 
     setIsResettingPassword(true);
     try {
+      // In this app, "Forgot Password" for admins resets the Supabase Auth password.
+      // For Staff PINs, the Admin must reset them in the User Management section.
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -114,8 +116,8 @@ export default function LoginScreen({ onNavigateToSignup, onNavigateToStaffLogin
         Alert.alert("Error", error.message);
       } else {
         Alert.alert(
-          "Check Your Email",
-          "If an account exists with this email, you will receive a password reset link shortly.",
+          "Reset Link Sent",
+          "If an account exists with this email, you will receive a password reset link. \n\nNote: This is for Admin passwords. To reset a Staff PIN, please log in as an Admin and go to User Management.",
           [{ text: "OK", onPress: () => setShowForgotPasswordModal(false) }]
         );
         setResetEmail("");
